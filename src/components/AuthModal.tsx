@@ -1,14 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../types';
 import { X, User, Factory, ShieldCheck, Instagram, AlertCircle, CheckCircle2, Building2 } from 'lucide-react';
 
 export const AuthModal: React.FC = () => {
-  const { isAuthModalOpen, setIsAuthModalOpen, login, registerUser } = useApp();
+  const { isAuthModalOpen, setIsAuthModalOpen, login, registerUser, initialAuthRole } = useApp();
   const [isRegister, setIsRegister] = useState(false);
 
   // Selected Role Tab for Login / Register
   const [selectedRoleTab, setSelectedRoleTab] = useState<UserRole>('customer');
+
+  useEffect(() => {
+    if (initialAuthRole) {
+      setSelectedRoleTab(initialAuthRole);
+    }
+  }, [initialAuthRole, isAuthModalOpen]);
   
   // Form State - Empty default values for real production login/signup
   const [name, setName] = useState('');

@@ -10,6 +10,7 @@ import { CartDrawer } from './components/CartDrawer';
 import { IndustryDashboard } from './components/IndustryDashboard';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AuthModal } from './components/AuthModal';
+import { IndustryAccessModal } from './components/IndustryAccessModal';
 import { UserProfile } from './components/UserProfile';
 import { Footer } from './components/Footer';
 
@@ -39,6 +40,7 @@ const AppContent: React.FC = () => {
       <RecyclingModal />
       <CartDrawer />
       <AuthModal />
+      <IndustryAccessModal />
     </div>
   );
 };

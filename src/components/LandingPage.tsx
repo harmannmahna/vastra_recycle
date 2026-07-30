@@ -6,7 +6,8 @@ import { Item } from '../types';
 export const LandingPage: React.FC<{ setActiveTab: (tab: string) => void }> = ({ setActiveTab }) => {
   const { 
     items, analytics, wishlist, toggleWishlist, addToCart, 
-    setSelectedProductModal, setIsRecycleModalOpen, setIsSellModalOpen, setIsAuthModalOpen, currentUser 
+    setSelectedProductModal, setIsRecycleModalOpen, setIsSellModalOpen, setIsAuthModalOpen, 
+    setIsIndustryAccessModalOpen, setInitialAuthRole, currentUser 
   } = useApp();
 
   const featuredItems = items.filter(i => i.status === 'listed').slice(0, 4);
@@ -441,8 +442,15 @@ export const LandingPage: React.FC<{ setActiveTab: (tab: string) => void }> = ({
           <div className="lg:col-span-4 flex justify-start lg:justify-end">
             <button
               onClick={() => {
-                if (!currentUser) setIsAuthModalOpen(true);
-                else setActiveTab('industry');
+                if (!currentUser) {
+                  setInitialAuthRole('industry_partner');
+                  setIsIndustryAccessModalOpen(true);
+                } else if (currentUser.role === 'industry_partner' || currentUser.role === 'admin') {
+                  setActiveTab('industry');
+                } else {
+                  // Logged in as Consumer: Pop up Industry Access Modal
+                  setIsIndustryAccessModalOpen(true);
+                }
               }}
               className="px-6 py-3.5 rounded-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-poppins font-bold text-sm transition-all shadow-md flex items-center gap-2"
             >
