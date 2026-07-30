@@ -7,7 +7,8 @@ export const Navbar: React.FC<{ activeTab: string; setActiveTab: (tab: string) =
     currentUser, logout,
     cart, wishlist, 
     searchQuery, setSearchQuery, 
-    setIsAuthModalOpen, setIsSellModalOpen, setIsRecycleModalOpen, setIsCartOpen 
+    setIsAuthModalOpen, setIsIndustryAccessModalOpen, setInitialAuthRole, 
+    setIsSellModalOpen, setIsRecycleModalOpen, setIsCartOpen 
   } = useApp();
 
   const totalCartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -130,12 +131,13 @@ export const Navbar: React.FC<{ activeTab: string; setActiveTab: (tab: string) =
           <button
             onClick={() => {
               if (!currentUser) {
-                setIsAuthModalOpen(true);
-              } else if (currentUser.role === 'industry_partner') {
+                setInitialAuthRole('industry_partner');
+                setIsIndustryAccessModalOpen(true);
+              } else if (currentUser.role === 'industry_partner' || currentUser.role === 'admin') {
                 setActiveTab('industry');
               } else {
-                alert('Industry Partner access required! Please log in with your Industry account.');
-                setIsAuthModalOpen(true);
+                // Logged in as Consumer: Pop up Industry Access Modal
+                setIsIndustryAccessModalOpen(true);
               }
             }}
             className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
@@ -149,11 +151,13 @@ export const Navbar: React.FC<{ activeTab: string; setActiveTab: (tab: string) =
           <button
             onClick={() => {
               if (!currentUser) {
+                setInitialAuthRole('admin');
                 setIsAuthModalOpen(true);
               } else if (currentUser.role === 'admin') {
                 setActiveTab('admin');
               } else {
-                alert('Admin credentials required! Please log in as Admin panel member.');
+                alert('Admin Governance access is strictly reserved for authorized system administrators (sanyam0902@gmail.com).');
+                setInitialAuthRole('admin');
                 setIsAuthModalOpen(true);
               }
             }}

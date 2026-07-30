@@ -55,9 +55,13 @@ interface AppContextType {
   selectedCondition: ItemCondition | 'All';
   setSelectedCondition: (cond: ItemCondition | 'All') => void;
   
-  // Modals
+  // Modals & Role Access
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
+  isIndustryAccessModalOpen: boolean;
+  setIsIndustryAccessModalOpen: (open: boolean) => void;
+  initialAuthRole: UserRole;
+  setInitialAuthRole: (role: UserRole) => void;
   isSellModalOpen: boolean;
   setIsSellModalOpen: (open: boolean) => void;
   isRecycleModalOpen: boolean;
@@ -87,8 +91,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedCategory, setSelectedCategory] = useState<ItemCategory | 'All'>('All');
   const [selectedCondition, setSelectedCondition] = useState<ItemCondition | 'All'>('All');
 
-  // UI Modals State
+  // UI Modals & Access Control State
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isIndustryAccessModalOpen, setIsIndustryAccessModalOpen] = useState(false);
+  const [initialAuthRole, setInitialAuthRole] = useState<UserRole>('customer');
   const [isSellModalOpen, setIsSellModalOpen] = useState(false);
   const [isRecycleModalOpen, setIsRecycleModalOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -435,7 +441,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       cart, addToCart, removeFromCart, clearCart, toggleWishlist,
       createListing, moderateListing, createPickupRequest, claimBatch, updateBatchStatus, createBatchFromPickups, completeCheckout,
       searchQuery, setSearchQuery, selectedCategory, setSelectedCategory, selectedCondition, setSelectedCondition,
-      isAuthModalOpen, setIsAuthModalOpen, isSellModalOpen, setIsSellModalOpen, isRecycleModalOpen, setIsRecycleModalOpen, isCartOpen, setIsCartOpen,
+      isAuthModalOpen, setIsAuthModalOpen, 
+      isIndustryAccessModalOpen, setIsIndustryAccessModalOpen,
+      initialAuthRole, setInitialAuthRole,
+      isSellModalOpen, setIsSellModalOpen, isRecycleModalOpen, setIsRecycleModalOpen, isCartOpen, setIsCartOpen,
       selectedProductModal, setSelectedProductModal
     }}>
       {children}
