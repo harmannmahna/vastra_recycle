@@ -279,6 +279,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setUsers(prev => [newUser, ...prev]);
     setCurrentUser(newUser);
+    db.upsertUserSupabase(newUser);
     return { success: true };
   };
 
@@ -630,6 +631,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Remove any user account (Consumer, Industry, or Admin)
   const removeUserAccount = (userId: string) => {
     setUsers(prev => prev.filter(u => u.id !== userId));
+    db.deleteUserSupabase(userId);
     if (currentUser?.id === userId) {
       setCurrentUser(null);
     }
@@ -638,6 +640,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Remove industry member account
   const removeIndustryMember = (userId: string) => {
     setUsers(prev => prev.filter(u => u.id !== userId));
+    db.deleteUserSupabase(userId);
   };
 
   // Remove product from catalog

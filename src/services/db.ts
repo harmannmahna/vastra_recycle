@@ -218,5 +218,20 @@ export const db = {
       console.error('Failed to upsert user to Supabase:', err);
       return false;
     }
+  },
+
+  deleteUserSupabase: async (userId: string): Promise<boolean> => {
+    if (!isSupabaseConfigured) return false;
+    try {
+      const { error } = await supabase.from('users').delete().eq('id', userId);
+      if (error) {
+        console.error('Supabase user delete error:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('Failed to delete user from Supabase:', err);
+      return false;
+    }
   }
 };
