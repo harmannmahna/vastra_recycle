@@ -75,10 +75,7 @@ export const db = {
   saveUsers: (users: User[]) => {
     try {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-      // Async background sync to Supabase if configured
-      if (isSupabaseConfigured) {
-        users.forEach(u => db.upsertUserSupabase(u));
-      }
+      // Note: individual user upserts are handled explicitly in registerUser / updateUserProfile
     } catch (e) {
       console.error('Failed to persist users locally:', e);
     }
