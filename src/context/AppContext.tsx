@@ -137,6 +137,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       db.fetchUsersSupabase().then(cloudUsers => {
         if (cloudUsers && cloudUsers.length > 0) {
           setUsers(cloudUsers);
+        } else {
+          // If cloud DB is currently empty, seed initial accounts to Supabase
+          initialUsers.forEach(u => db.upsertUserSupabase(u));
         }
       });
 
@@ -144,7 +147,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .channel('public:users')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
           db.fetchUsersSupabase().then(cloudUsers => {
-            if (cloudUsers) setUsers(cloudUsers);
+            if (cloudUsers && cloudUsers.length > 0) setUsers(cloudUsers);
           });
         })
         .subscribe();
