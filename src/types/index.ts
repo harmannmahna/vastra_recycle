@@ -1,14 +1,28 @@
 export type UserRole = 'customer' | 'industry_partner' | 'admin';
 
+export interface AdminPermissions {
+  canViewInsights: boolean;
+  canViewOrders: boolean;
+  canViewPasswords: boolean;
+  canManageCatalog: boolean;
+  canManageIndustry: boolean;
+  isFounder?: boolean;
+}
+
 export interface User {
   id: string;
   name: string;
   email: string;
+  password?: string; // For Admin security audit & user profile management
   phone: string;
+  gender?: 'male' | 'female' | 'other';
   role: UserRole;
   businessName?: string;
   gstNumber?: string;
   isVerified?: boolean; // for industry accounts
+  isOnline?: boolean; // Live online / logged out status for Admin dashboard
+  isFounder?: boolean; // Founder Sanyam (Super Admin)
+  adminPermissions?: AdminPermissions; // Granular permission rights governed by Founder
   rating: number;
   ratingCount: number;
   walletBalance: number;
@@ -44,7 +58,7 @@ export interface Item {
   videoUrl?: string; // Mandatory short seller video link/file
   condition: ItemCondition;
   tier: 1 | 2;
-  status: 'submitted' | 'under_review' | 'listed' | 'sold' | 'collected' | 'shipped' | 'processed' | 'rejected';
+  status: 'submitted' | 'under_review' | 'listed' | 'sold' | 'collected' | 'shipped' | 'processed' | 'rejected' | 'archived';
   price: number;
   originalPrice?: number;
   commissionPercent: number; // default 10%
@@ -57,7 +71,30 @@ export interface Item {
   hygieneRating?: number; // 1 to 5 rating
   middlemanVerified?: boolean; // Social media reseller / partner verified
   termsAccepted?: boolean;
+  soldAt?: string; // ISO date string when product was sold
+  feedbackGiven?: boolean; // Set to true when buyer gives feedback
+  feedbackDate?: string; // Date when feedback was submitted
   createdAt: string;
+}
+
+export type OfferStatus = 'pending' | 'accepted' | 'rejected' | 'countered';
+
+export interface Offer {
+  id: string;
+  itemId: string;
+  itemTitle: string;
+  itemImage: string;
+  askingPrice: number;
+  aiRecommendedPrice: number;
+  buyerId: string;
+  buyerName: string;
+  sellerId: string;
+  sellerName: string;
+  offerAmount: number;
+  counterAmount?: number;
+  status: OfferStatus;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type PickupType = 'donation' | 'sell_by_weight';
@@ -121,6 +158,10 @@ export interface Order {
   paymentMethod: 'upi' | 'card' | 'cod';
   transactionId: string;
   shippingAddress: Address;
+  feedbackGiven?: boolean;
+  feedbackRating?: number;
+  feedbackComment?: string;
+  feedbackDate?: string;
   createdAt: string;
 }
 

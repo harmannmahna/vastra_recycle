@@ -1,28 +1,41 @@
-import { Item, User, PickupRequest, RecyclingBatch, Order, AnalyticsData } from '../types';
+import { Item, User, PickupRequest, RecyclingBatch, Order, AnalyticsData, Offer } from '../types';
 
 export const initialUsers: User[] = [
   {
     id: 'usr_admin_1',
     name: 'Sanyam (Founder & Admin)',
     email: 'sanyam0902@gmail.com',
+    password: 'Gamma@12',
     phone: '8708288911',
+    gender: 'male',
     role: 'admin',
+    isOnline: true,
+    isFounder: true,
+    adminPermissions: {
+      canViewInsights: true,
+      canViewOrders: true,
+      canViewPasswords: true,
+      canManageCatalog: true,
+      canManageIndustry: true,
+      isFounder: true
+    },
     rating: 5.0,
     ratingCount: 1,
     walletBalance: 0,
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
     createdAt: '2026-07-01'
   },
   {
     id: 'usr_customer_1',
     name: 'Sanyam (Consumer & Seller)',
     email: 'sanyam0902@gmail.com',
+    password: 'User@123',
     phone: '8708288911',
+    gender: 'male',
     role: 'customer',
+    isOnline: false,
     rating: 5.0,
     ratingCount: 2,
     walletBalance: 0,
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
     address: {
       id: 'addr_1',
       userId: 'usr_customer_1',
@@ -38,21 +51,25 @@ export const initialUsers: User[] = [
     id: 'usr_industry_1',
     name: 'Delhi NCR EcoTextile Recycling Hub',
     email: 'sanyam0902@gmail.com',
+    password: 'Ind@12345',
     phone: '8708288911',
+    gender: 'other',
     role: 'industry_partner',
     businessName: 'VastraChakra EcoMills Delhi NCR',
     gstNumber: '07AAACV0902F1Z8',
     isVerified: true,
+    isOnline: false,
     rating: 5.0,
     ratingCount: 1,
     walletBalance: 0,
-    avatar: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=400&q=80',
     createdAt: '2026-07-15'
   }
 ];
 
 // Clean Production State - 0 dummy sample clothes
 export const initialItems: Item[] = [];
+
+export const initialOffers: Offer[] = [];
 
 // Clean initial requests & batches
 export const initialPickups: PickupRequest[] = [];

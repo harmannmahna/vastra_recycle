@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
-  User, UserRole, Item, ItemCategory, ItemCondition, 
-  PickupRequest, PickupType, RecyclingBatch, BatchStatus, Order, AnalyticsData, Address 
+  User, UserRole, AdminPermissions, Item, ItemCategory, ItemCondition, 
+  PickupRequest, PickupType, RecyclingBatch, BatchStatus, Order, AnalyticsData, Address, Offer 
 } from '../types';
-import { initialUsers, initialItems, initialPickups, initialBatches, initialOrders, initialAnalytics } from '../services/mockData';
+import { initialUsers, initialItems, initialPickups, initialBatches, initialOrders, initialAnalytics, initialOffers } from '../services/mockData';
 import { db } from '../services/db';
 import { validateDelhiNCRLocation } from '../utils/locationValidation';
+import { calculateAiRecommendedPrice } from '../utils/aiPriceCalculator';
 import confetti from 'canvas-confetti';
 
 interface CartItem {
@@ -19,12 +20,24 @@ interface AppContextType {
   setCurrentUser: (user: User | null) => void;
   login: (email: string, password?: string, role?: UserRole, gstNumber?: string) => { success: boolean; message?: string };
   registerUser: (userData: Partial<User>) => { success: boolean; message?: string };
+  updateUserProfile: (updatedData: Partial<User>) => void;
   approveIndustryUser: (userId: string) => void;
   logout: () => void;
+
+  // Granular Admin Permissions & Founder Management
+  promoteToAdmin: (userId: string, permissions: AdminPermissions) => void;
+  revokeAdminRights: (userId: string) => void;
+  updateAdminPermissions: (userId: string, permissions: AdminPermissions) => void;
+  removeUserAccount: (userId: string) => void;
+  removeIndustryMember: (userId: string) => void;
+  removeProduct: (itemId: string) => void;
+  submitOrderFeedback: (orderId: string, rating: number, comment: string) => void;
+  cleanupSoldProducts5Days: () => void;
   
   // Data lists
   users: User[];
   items: Item[];
+  offers: Offer[];
   pickups: PickupRequest[];
   batches: RecyclingBatch[];
   orders: Order[];
@@ -46,6 +59,13 @@ interface AppContextType {
   updateBatchStatus: (batchId: string, status: BatchStatus) => void;
   createBatchFromPickups: (requestIds: string[], location: string) => void;
   completeCheckout: (paymentMethod: 'upi' | 'card' | 'cod', address: Address) => { success: boolean; message?: string };
+
+  // Bargaining / Offer Feature Handlers
+  makeOffer: (item: Item, offerAmount: number) => { success: boolean; message?: string };
+  acceptOffer: (offerId: string) => void;
+  rejectOffer: (offerId: string) => void;
+  counterOffer: (offerId: string, counterAmount: number) => void;
+  buyAtNegotiatedPrice: (offerId: string, paymentMethod: 'upi' | 'card' | 'cod', address: Address) => { success: boolean; message?: string };
 
   // Filters & UI Modals
   searchQuery: string;
@@ -79,6 +99,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [users, setUsers] = useState<User[]>(() => db.getUsers() || initialUsers);
   const [currentUser, setCurrentUser] = useState<User | null>(() => db.getCurrentUser() || null);
   const [items, setItems] = useState<Item[]>(() => db.getItems() || initialItems);
+  const [offers, setOffers] = useState<Offer[]>(() => db.getOffers() || initialOffers);
   const [pickups, setPickups] = useState<PickupRequest[]>(() => db.getPickups() || initialPickups);
   const [batches, setBatches] = useState<RecyclingBatch[]>(() => initialBatches);
   const [orders, setOrders] = useState<Order[]>(() => db.getOrders() || initialOrders);
@@ -104,6 +125,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => { db.saveUsers(users); }, [users]);
   useEffect(() => { db.saveCurrentUser(currentUser); }, [currentUser]);
   useEffect(() => { db.saveItems(items); }, [items]);
+  useEffect(() => { db.saveOffers(offers); }, [offers]);
   useEffect(() => { db.savePickups(pickups); }, [pickups]);
   useEffect(() => { db.saveOrders(orders); }, [orders]);
   useEffect(() => { db.saveWishlist(wishlist); }, [wishlist]);
@@ -112,6 +134,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const isValidGSTIN = (gst: string): boolean => {
     const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i;
     return gstRegex.test(gst.trim());
+  };
+
+  // Helper to update user online status
+  const setUserOnlineStatus = (userId: string, isOnline: boolean) => {
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, isOnline } : u));
   };
 
   // Strict Login Authentication Handler
@@ -123,29 +150,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: 'Please enter your registered email address.' };
     }
 
-    // 1. Admin Login (Sole Predefined Backend Access)
-    if (role === 'admin' || cleanEmail === 'sanyam0902@gmail.com' && cleanPass === 'Gamma@12') {
-      if (cleanEmail !== 'sanyam0902@gmail.com' || cleanPass !== 'Gamma@12') {
-        return { success: false, message: 'Invalid Admin Credentials! Admin access requires authorized email & password.' };
+    // 1. Admin Login (Founder or Promoted Sub-Admins)
+    if (role === 'admin' || (cleanEmail === 'sanyam0902@gmail.com' && cleanPass === 'Gamma@12')) {
+      // Check Founder Credentials
+      if (cleanEmail === 'sanyam0902@gmail.com') {
+        if (cleanPass !== 'Gamma@12') {
+          return { success: false, message: 'Invalid Founder Password! Founder access requires password Gamma@12.' };
+        }
+        const founderUser = users.find(u => u.email.toLowerCase() === 'sanyam0902@gmail.com' && u.role === 'admin') || {
+          id: 'usr_admin_1',
+          name: 'Sanyam (Founder & Admin)',
+          email: 'sanyam0902@gmail.com',
+          password: 'Gamma@12',
+          phone: '8708288911',
+          role: 'admin' as UserRole,
+          isOnline: true,
+          isFounder: true,
+          adminPermissions: {
+            canViewInsights: true,
+            canViewOrders: true,
+            canViewPasswords: true,
+            canManageCatalog: true,
+            canManageIndustry: true,
+            isFounder: true
+          },
+          rating: 5.0,
+          ratingCount: 1,
+          walletBalance: 0,
+          createdAt: new Date().toISOString()
+        };
+        const activeFounder = { ...founderUser, isOnline: true };
+        setCurrentUser(activeFounder);
+        setUserOnlineStatus(activeFounder.id, true);
+        return { success: true };
       }
-      const adminUser = users.find(u => u.role === 'admin') || {
-        id: 'usr_admin_1',
-        name: 'Sanyam (Founder & Admin)',
-        email: 'sanyam0902@gmail.com',
-        phone: '8708288911',
-        role: 'admin',
-        rating: 5.0,
-        ratingCount: 1,
-        walletBalance: 0,
-        createdAt: new Date().toISOString()
-      };
-      setCurrentUser(adminUser);
-      return { success: true };
+
+      // Promoted Sub-Admin Authentication
+      const foundSubAdmin = users.find(u => u.email.toLowerCase() === cleanEmail && u.role === 'admin');
+      if (foundSubAdmin) {
+        if (foundSubAdmin.password && foundSubAdmin.password !== cleanPass) {
+          return { success: false, message: 'Invalid Admin Password! Please check your credentials.' };
+        }
+        const activeSubAdmin = { ...foundSubAdmin, isOnline: true };
+        setCurrentUser(activeSubAdmin);
+        setUserOnlineStatus(activeSubAdmin.id, true);
+        return { success: true };
+      }
+
+      return { success: false, message: 'Admin account not found! Admin rights must be granted by Founder.' };
     }
 
     // 2. Industry Partner Login
     if (role === 'industry_partner') {
-      // Validate GSTIN requirement
       const checkGst = gstNumber || '07AAACV0902F1Z8';
       if (!isValidGSTIN(checkGst)) {
         return { success: false, message: 'Invalid or missing GSTIN! Valid 15-character GSTIN number is strictly required for Industry Partners.' };
@@ -153,7 +209,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const foundIndustry = users.find(u => u.email.toLowerCase() === cleanEmail && u.role === 'industry_partner');
       if (foundIndustry) {
-        setCurrentUser(foundIndustry);
+        const activeUser = { ...foundIndustry, isOnline: true };
+        setCurrentUser(activeUser);
+        setUserOnlineStatus(activeUser.id, true);
         return { success: true };
       }
 
@@ -161,11 +219,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         id: `usr_ind_${Date.now()}`,
         name: cleanEmail.split('@')[0],
         email: cleanEmail,
+        password: cleanPass || 'Industry@123',
         phone: '8708288911',
         role: 'industry_partner',
         businessName: 'VastraChakra EcoMills Delhi NCR',
         gstNumber: checkGst,
         isVerified: true,
+        isOnline: true,
         rating: 5.0,
         ratingCount: 1,
         walletBalance: 0,
@@ -179,7 +239,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 3. Customer Login
     const foundCust = users.find(u => u.email.toLowerCase() === cleanEmail && u.role === 'customer');
     if (foundCust) {
-      setCurrentUser(foundCust);
+      const activeCust = { ...foundCust, isOnline: true };
+      setCurrentUser(activeCust);
+      setUserOnlineStatus(activeCust.id, true);
       return { success: true };
     }
 
@@ -187,8 +249,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `usr_cust_${Date.now()}`,
       name: cleanEmail.split('@')[0],
       email: cleanEmail,
-      phone: '8708288911',
+      password: cleanPass || 'User@123',
+      phone: '',
+      gender: 'other',
       role: 'customer',
+      isOnline: true,
       rating: 5.0,
       ratingCount: 0,
       walletBalance: 0,
@@ -201,7 +266,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // User Registration with Security Rules
   const registerUser = (userData: Partial<User>): { success: boolean; message?: string } => {
-    // SECURITY RULE 1: Admin accounts cannot be self-created via signup form
     if (userData.role === 'admin') {
       return {
         success: false,
@@ -209,7 +273,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    // SECURITY RULE 2: Industry Partner requires valid GSTIN
     if (userData.role === 'industry_partner') {
       if (!userData.gstNumber || !isValidGSTIN(userData.gstNumber)) {
         return {
@@ -223,11 +286,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `usr_${Date.now()}`,
       name: userData.name || 'Member',
       email: userData.email || 'user@example.com',
-      phone: userData.phone || '8708288911',
+      password: userData.password || 'User@123',
+      phone: userData.phone || '',
+      gender: userData.gender || 'other',
       role: userData.role || 'customer',
+      avatar: userData.avatar,
       businessName: userData.businessName,
       gstNumber: userData.gstNumber,
       isVerified: userData.role === 'industry_partner' ? true : true,
+      isOnline: true,
       rating: 5.0,
       ratingCount: 0,
       walletBalance: 0,
@@ -239,11 +306,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true };
   };
 
+  const updateUserProfile = (updatedData: Partial<User>) => {
+    if (!currentUser) return;
+    const updatedUser: User = {
+      ...currentUser,
+      ...updatedData
+    };
+    setCurrentUser(updatedUser);
+    setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+  };
+
   const approveIndustryUser = (userId: string) => {
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, isVerified: true } : u));
   };
 
   const logout = () => {
+    if (currentUser) {
+      setUserOnlineStatus(currentUser.id, false);
+    }
     setCurrentUser(null);
   };
 
@@ -302,12 +382,109 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setItems(prev => prev.map(i => i.id === itemId ? { ...i, status } : i));
   };
 
+  // Bargaining / Offer Feature Implementation
+  const makeOffer = (item: Item, offerAmount: number): { success: boolean; message?: string } => {
+    if (!currentUser) {
+      return { success: false, message: 'Please login to send a bargain offer.' };
+    }
+
+    if (currentUser.id === item.ownerId) {
+      return { success: false, message: 'You cannot send an offer on your own item!' };
+    }
+
+    if (offerAmount <= 0) {
+      return { success: false, message: 'Offer amount must be greater than zero.' };
+    }
+
+    const aiEst = calculateAiRecommendedPrice(item);
+
+    const newOffer: Offer = {
+      id: `off_${Date.now()}`,
+      itemId: item.id,
+      itemTitle: item.title,
+      itemImage: item.images[0],
+      askingPrice: item.price,
+      aiRecommendedPrice: aiEst.recommendedPrice,
+      buyerId: currentUser.id,
+      buyerName: currentUser.name,
+      sellerId: item.ownerId,
+      sellerName: item.ownerName,
+      offerAmount,
+      status: 'pending',
+      createdAt: new Date().toISOString().split('T')[0],
+      updatedAt: new Date().toISOString().split('T')[0]
+    };
+
+    setOffers(prev => [newOffer, ...prev]);
+    confetti({ particleCount: 40, spread: 50 });
+    return { success: true, message: `Offer of ₹${offerAmount.toLocaleString()} sent to seller ${item.ownerName}!` };
+  };
+
+  const acceptOffer = (offerId: string) => {
+    setOffers(prev => prev.map(o => o.id === offerId ? {
+      ...o,
+      status: 'accepted',
+      updatedAt: new Date().toISOString().split('T')[0]
+    } : o));
+  };
+
+  const rejectOffer = (offerId: string) => {
+    setOffers(prev => prev.map(o => o.id === offerId ? {
+      ...o,
+      status: 'rejected',
+      updatedAt: new Date().toISOString().split('T')[0]
+    } : o));
+  };
+
+  const counterOffer = (offerId: string, counterAmount: number) => {
+    setOffers(prev => prev.map(o => o.id === offerId ? {
+      ...o,
+      status: 'countered',
+      counterAmount,
+      updatedAt: new Date().toISOString().split('T')[0]
+    } : o));
+  };
+
+  const buyAtNegotiatedPrice = (offerId: string, paymentMethod: 'upi' | 'card' | 'cod', address: Address): { success: boolean; message?: string } => {
+    const offer = offers.find(o => o.id === offerId);
+    if (!offer) return { success: false, message: 'Offer not found.' };
+
+    const item = items.find(i => i.id === offer.itemId);
+    if (!item) return { success: false, message: 'Item no longer available.' };
+
+    const finalAmount = offer.status === 'countered' && offer.counterAmount ? offer.counterAmount : offer.offerAmount;
+    const commission = Math.round(finalAmount * 0.1);
+    const sellerPayout = finalAmount - commission;
+
+    const newOrder: Order = {
+      id: `ord_${Date.now()}_${item.id}`,
+      orderNumber: `ORD-VC-OFFER-${Math.floor(100000 + Math.random() * 900000)}`,
+      buyerId: offer.buyerId,
+      buyerName: offer.buyerName,
+      item: { ...item, price: finalAmount },
+      amount: finalAmount,
+      commissionAmount: commission,
+      sellerPayout,
+      status: 'paid',
+      paymentMethod,
+      transactionId: `TXN_BARGAIN_${paymentMethod.toUpperCase()}_${Date.now()}`,
+      shippingAddress: address,
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+
+    setOrders(prev => [newOrder, ...prev]);
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'sold', soldAt: new Date().toISOString() } : i));
+    setOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'accepted' } : o));
+
+    confetti({ particleCount: 100, spread: 80 });
+    return { success: true };
+  };
+
   const createPickupRequest = (data: { clothingCount: number; estimatedWeightKg: number; clothingTypes: string; packedBagImageUrl: string; pickupType: PickupType; fullAddress: string; scheduledDate: string; scheduledSlot: string; notes?: string }): { success: boolean; message?: string } => {
     if (!currentUser) {
       return { success: false, message: 'Please login to request a recycling pickup.' };
     }
 
-    // Location Check: Strictly Delhi NCR
     const locationCheck = validateDelhiNCRLocation(data.fullAddress);
     if (!locationCheck.isValid) {
       return { success: false, message: locationCheck.message };
@@ -433,13 +610,117 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
     return { success: true };
   };
+  // Promote a user to Admin role with specific permissions
+  const promoteToAdmin = (userId: string, permissions: AdminPermissions) => {
+    setUsers(prev => prev.map(u => {
+      if (u.id === userId) {
+        return {
+          ...u,
+          role: 'admin' as UserRole,
+          adminPermissions: { ...permissions }
+        };
+      }
+      return u;
+    }));
+  };
+
+  // Revoke Admin rights
+  const revokeAdminRights = (userId: string) => {
+    setUsers(prev => prev.map(u => {
+      if (u.id === userId && !u.isFounder) {
+        const { adminPermissions, isFounder, ...rest } = u;
+        return {
+          ...rest,
+          role: 'customer' as UserRole
+        };
+      }
+      return u;
+    }));
+  };
+
+  // Update existing admin permissions
+  const updateAdminPermissions = (userId: string, permissions: AdminPermissions) => {
+    setUsers(prev => prev.map(u => {
+      if (u.id === userId) {
+        return {
+          ...u,
+          adminPermissions: { ...permissions }
+        };
+      }
+      return u;
+    }));
+  };
+
+  // Remove any user account (Consumer, Industry, or Admin)
+  const removeUserAccount = (userId: string) => {
+    setUsers(prev => prev.filter(u => u.id !== userId));
+    if (currentUser?.id === userId) {
+      setCurrentUser(null);
+    }
+  };
+
+  // Remove industry member account
+  const removeIndustryMember = (userId: string) => {
+    setUsers(prev => prev.filter(u => u.id !== userId));
+  };
+
+  // Remove product from catalog
+  const removeProduct = (itemId: string) => {
+    setItems(prev => prev.filter(i => i.id !== itemId));
+  };
+
+  // Submit buyer order feedback & trigger auto-archival timeline
+  const submitOrderFeedback = (orderId: string, rating: number, comment: string) => {
+    const now = new Date().toISOString();
+    setOrders(prev => prev.map(o => {
+      if (o.id === orderId) {
+        // Mark item as feedback given
+        setItems(itemPrev => itemPrev.map(it => {
+          if (it.id === o.item.id) {
+            return {
+              ...it,
+              feedbackGiven: true,
+              feedbackDate: now
+            };
+          }
+          return it;
+        }));
+        return {
+          ...o,
+          feedbackGiven: true,
+          feedbackRating: rating,
+          feedbackComment: comment,
+          feedbackDate: now
+        };
+      }
+      return o;
+    }));
+  };
+
+  // Auto-remove / archive sold products after 5 days of feedback or sale
+  const cleanupSoldProducts5Days = () => {
+    const now = Date.now();
+    const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
+    setItems(prev => prev.map(item => {
+      if (item.status === 'sold') {
+        const soldTime = item.soldAt ? new Date(item.soldAt).getTime() : now - (6 * 24 * 60 * 60 * 1000);
+        const feedbackTime = item.feedbackDate ? new Date(item.feedbackDate).getTime() : soldTime;
+        if (item.feedbackGiven || (now - feedbackTime >= FIVE_DAYS_MS)) {
+          return { ...item, status: 'archived' };
+        }
+      }
+      return item;
+    }));
+  };
 
   return (
     <AppContext.Provider value={{
-      currentUser, setCurrentUser, login, registerUser, approveIndustryUser, logout,
-      users, items, pickups, batches, orders, analytics, wishlist,
+      currentUser, setCurrentUser, login, registerUser, updateUserProfile, approveIndustryUser, logout,
+      promoteToAdmin, revokeAdminRights, updateAdminPermissions, removeUserAccount, removeIndustryMember, removeProduct, submitOrderFeedback, cleanupSoldProducts5Days,
+      users, items, offers, pickups, batches, orders, analytics, wishlist,
       cart, addToCart, removeFromCart, clearCart, toggleWishlist,
       createListing, moderateListing, createPickupRequest, claimBatch, updateBatchStatus, createBatchFromPickups, completeCheckout,
+      makeOffer, acceptOffer, rejectOffer, counterOffer, buyAtNegotiatedPrice,
       searchQuery, setSearchQuery, selectedCategory, setSelectedCategory, selectedCondition, setSelectedCondition,
       isAuthModalOpen, setIsAuthModalOpen, 
       isIndustryAccessModalOpen, setIsIndustryAccessModalOpen,

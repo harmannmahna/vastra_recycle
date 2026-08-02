@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../types';
-import { X, User, Factory, ShieldCheck, Instagram, AlertCircle, CheckCircle2, Building2 } from 'lucide-react';
+import { X, User, Factory, ShieldCheck, Instagram, AlertCircle, CheckCircle2, Building2, Camera, Upload } from 'lucide-react';
+import { getDefaultAvatar } from '../utils/avatarUtils';
 
 export const AuthModal: React.FC = () => {
   const { isAuthModalOpen, setIsAuthModalOpen, login, registerUser, initialAuthRole } = useApp();
@@ -16,11 +17,13 @@ export const AuthModal: React.FC = () => {
     }
   }, [initialAuthRole, isAuthModalOpen]);
   
-  // Form State - Empty default values for real production login/signup
+  // Form State
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
+  const [gender, setGender] = useState<'female' | 'male' | 'other'>('female');
+  const [avatar, setAvatar] = useState<string>('');
   const [businessName, setBusinessName] = useState('');
   const [gstNumber, setGstNumber] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -33,6 +36,21 @@ export const AuthModal: React.FC = () => {
     setErrorMessage('');
   };
 
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setErrorMessage('Image size should be under 5MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatar(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
@@ -43,6 +61,16 @@ export const AuthModal: React.FC = () => {
     }
 
     if (isRegister) {
+      if (!name.trim()) {
+        setErrorMessage('Please enter your full name.');
+        return;
+      }
+
+      if (!phone.trim() || !/^[0-9]{10}$/.test(phone.trim())) {
+        setErrorMessage('Please enter a valid 10-digit mobile phone number.');
+        return;
+      }
+
       // SECURITY CHECK 1: Admin accounts cannot be created via frontend signup
       if (selectedRoleTab === 'admin') {
         setErrorMessage('Admin accounts cannot be self-registered. Access is provisioned strictly via system administrator authorization.');
@@ -63,9 +91,11 @@ export const AuthModal: React.FC = () => {
       }
 
       const res = registerUser({
-        name,
+        name: name.trim(),
         email: email.trim(),
-        phone: phone.trim() || '8708288911',
+        phone: phone.trim(),
+        gender,
+        avatar: avatar.trim() || undefined,
         role: selectedRoleTab,
         businessName: selectedRoleTab === 'industry_partner' ? businessName : undefined,
         gstNumber: selectedRoleTab === 'industry_partner' ? gstNumber.trim() : undefined
@@ -97,21 +127,20 @@ export const AuthModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-forest-900/70 backdrop-blur-md animate-fadeIn">
-      <div className="bg-[#FDFBF7] border border-forest-700/15 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative space-y-5">
+      <div className="bg-[#FDFBF7] border border-forest-700/15 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto">
         
-        {/* Header with Circular Emblem Logo (No Solid Border, Soft Bottom Reflection Shadow) */}
-        <div className="flex items-center justify-between border-b border-forest-700/10 pb-4">
+        {/* Header with Circular Emblem Logo */}
+        <div className="flex items-center justify-between border-b border-forest-700/10 pb-3">
           <div className="flex items-center gap-3">
             <div className="relative group">
               <div className="h-12 w-12 rounded-full overflow-hidden shadow-md hover:shadow-xl transition-shadow flex items-center justify-center shrink-0">
                 <img src="/logo-emblem.jpg" alt="VastraChakra Circular Emblem" className="h-full w-full object-cover rounded-full" />
               </div>
-              {/* Subtle bottom mirror reflection effect */}
               <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-1.5 bg-forest-900/15 rounded-full blur-xs pointer-events-none"></div>
             </div>
             <div>
               <h2 className="font-poppins font-bold text-xl text-forest-900 flex items-center gap-1.5">
-                <span>{isRegister ? 'Create VastraChakra Account' : 'Sign In'}</span>
+                <span>{isRegister ? 'Create Account' : 'Sign In'}</span>
                 <img src="/chakra-icon.png" alt="Chakra" className="w-4 h-4 object-contain" />
               </h2>
               <p className="text-xs text-forest-900/60 font-medium">
@@ -190,19 +219,108 @@ export const AuthModal: React.FC = () => {
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-3.5 text-xs sm:text-sm">
+        <form onSubmit={handleSubmit} className="space-y-3 text-xs sm:text-sm">
           {isRegister && (
-            <div>
-              <label className="block font-semibold text-forest-900 mb-1">Full Name / Contact Person *</label>
-              <input
-                type="text"
-                required
-                placeholder="Enter your full name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-2.5 bg-white border border-forest-700/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-700/20"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block font-semibold text-forest-900 mb-1">Full Name / Contact Person *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Enter your full name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-4 py-2 bg-white border border-forest-700/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-700/20"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-forest-900 mb-1">Mobile Phone Number (10 Digits) *</label>
+                <input
+                  type="tel"
+                  required
+                  maxLength={10}
+                  placeholder="e.g. 9876543210"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                  className="w-full px-4 py-2 bg-white border border-forest-700/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-700/20 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-forest-900 mb-1">Gender *</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setGender('female')}
+                    className={`py-2 px-1 rounded-xl text-xs font-bold transition-all border text-center ${
+                      gender === 'female'
+                        ? 'bg-terracotta-500 text-white border-terracotta-600 shadow-xs'
+                        : 'bg-white text-forest-900/70 border-forest-700/20 hover:border-forest-700/40'
+                    }`}
+                  >
+                    Female
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGender('male')}
+                    className={`py-2 px-1 rounded-xl text-xs font-bold transition-all border text-center ${
+                      gender === 'male'
+                        ? 'bg-forest-800 text-white border-forest-900 shadow-xs'
+                        : 'bg-white text-forest-900/70 border-forest-700/20 hover:border-forest-700/40'
+                    }`}
+                  >
+                    Male
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGender('other')}
+                    className={`py-2 px-1 rounded-xl text-xs font-bold transition-all border text-center ${
+                      gender === 'other'
+                        ? 'bg-earthteal-600 text-white border-earthteal-700 shadow-xs'
+                        : 'bg-white text-forest-900/70 border-forest-700/20 hover:border-forest-700/40'
+                    }`}
+                  >
+                    Third Gender
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-forest-900 mb-1">Photograph (Optional)</label>
+                <div className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-forest-700/20">
+                  <img
+                    src={avatar || getDefaultAvatar(gender)}
+                    alt="Avatar Preview"
+                    className="w-12 h-12 rounded-full object-cover border border-forest-700/20 shrink-0 shadow-xs"
+                  />
+                  <div className="flex-1">
+                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-forest-50 hover:bg-forest-100 text-forest-900 text-xs font-semibold border border-forest-700/20 transition-colors">
+                      <Camera className="w-3.5 h-3.5 text-forest-700" />
+                      <span>Upload Custom Photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        className="hidden"
+                      />
+                    </label>
+                    {avatar && (
+                      <button
+                        type="button"
+                        onClick={() => setAvatar('')}
+                        className="ml-2 text-[11px] text-red-600 hover:underline"
+                      >
+                        Remove photo
+                      </button>
+                    )}
+                    <p className="text-[10px] text-forest-900/60 mt-1">
+                      If left blank, a default faceless avatar for your selected gender will be used. You can change this anytime from your dashboard.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
 
           <div>
@@ -213,7 +331,7 @@ export const AuthModal: React.FC = () => {
               placeholder="name@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2.5 bg-white border border-forest-700/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-700/20"
+              className="w-full px-4 py-2 bg-white border border-forest-700/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-700/20"
             />
           </div>
 
@@ -225,7 +343,7 @@ export const AuthModal: React.FC = () => {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 bg-white border border-forest-700/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-700/20"
+              className="w-full px-4 py-2 bg-white border border-forest-700/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-700/20"
             />
           </div>
 
@@ -241,7 +359,7 @@ export const AuthModal: React.FC = () => {
                     placeholder="e.g. Panipat Fiber Recyclers Pvt Ltd"
                     value={businessName}
                     onChange={(e) => setBusinessName(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white border border-forest-700/20 rounded-xl focus:outline-none"
+                    className="w-full px-4 py-2 bg-white border border-forest-700/20 rounded-xl focus:outline-none"
                   />
                 </div>
               )}
@@ -257,7 +375,7 @@ export const AuthModal: React.FC = () => {
                   placeholder="e.g. 07AAACV0902F1Z8"
                   value={gstNumber}
                   onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
-                  className="w-full px-4 py-2.5 bg-white border border-forest-700/20 rounded-xl focus:outline-none font-mono tracking-wider"
+                  className="w-full px-4 py-2 bg-white border border-forest-700/20 rounded-xl focus:outline-none font-mono tracking-wider"
                 />
               </div>
             </>
@@ -265,7 +383,7 @@ export const AuthModal: React.FC = () => {
 
           <button
             type="submit"
-            className={`w-full py-3.5 rounded-full font-poppins font-bold text-sm transition-all shadow-md mt-2 flex items-center justify-center gap-2 ${
+            className={`w-full py-3 rounded-full font-poppins font-bold text-sm transition-all shadow-md mt-2 flex items-center justify-center gap-2 ${
               selectedRoleTab === 'admin' 
                 ? 'bg-amber-600 text-white hover:bg-amber-700' 
                 : selectedRoleTab === 'industry_partner'
@@ -279,7 +397,7 @@ export const AuthModal: React.FC = () => {
         </form>
 
         {/* Footer Instagram & Toggle */}
-        <div className="pt-3 border-t border-forest-700/10 flex items-center justify-between text-xs text-forest-900/70">
+        <div className="pt-2 border-t border-forest-700/10 flex items-center justify-between text-xs text-forest-900/70">
           <a
             href="https://www.instagram.com/vastrachakra_?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw=="
             target="_blank"
@@ -309,5 +427,3 @@ export const AuthModal: React.FC = () => {
     </div>
   );
 };
-
-

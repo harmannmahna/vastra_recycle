@@ -367,13 +367,13 @@ export const IndustryDashboard: React.FC = () => {
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
-            {/* Storage Facility 1: Tier 2 Staging */}
+            {/* Storage Facility 1: Recycling Staging */}
             <div className="bg-white border border-slate-200 rounded-3xl p-6 space-y-4 shadow-md">
               <div className="flex items-center gap-3">
                 <Warehouse className="w-6 h-6 text-teal-700" />
                 <div>
                   <h3 className="font-poppins font-bold text-lg text-slate-900">
-                    Tier 2 Recycling Staging Facility
+                    Textile Recycling Staging Facility
                   </h3>
                   <span className="text-xs text-slate-500">Okhla Industrial Area Sorting Center</span>
                 </div>
@@ -395,13 +395,13 @@ export const IndustryDashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Storage Facility 2: Tier 1 Holding */}
+            {/* Storage Facility 2: Reselling Holding */}
             <div className="bg-white border border-slate-200 rounded-3xl p-6 space-y-4 shadow-md">
               <div className="flex items-center gap-3">
                 <Building2 className="w-6 h-6 text-teal-700" />
                 <div>
                   <h3 className="font-poppins font-bold text-lg text-slate-900">
-                    Tier 1 Approved Reselling Holding Facility
+                    Approved Reselling Holding Facility
                   </h3>
                   <span className="text-xs text-slate-500">Hauz Khas Verification Center</span>
                 </div>

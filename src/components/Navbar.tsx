@@ -1,6 +1,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { ShoppingBag, Heart, Search, User as UserIcon, PlusCircle, Recycle as Recycling, ShieldCheck, Factory, LogOut, Instagram, Sparkles, Home, Tag } from 'lucide-react';
+import { getUserAvatar } from '../utils/avatarUtils';
 
 export const Navbar: React.FC<{ activeTab: string; setActiveTab: (tab: string) => void }> = ({ activeTab, setActiveTab }) => {
   const { 
@@ -47,7 +48,7 @@ export const Navbar: React.FC<{ activeTab: string; setActiveTab: (tab: string) =
         <div className="text-cream-300 flex items-center gap-4 text-xs font-medium">
           <span className="flex items-center gap-1.5 text-emerald-400">
             <img src="/chakra-icon.png" alt="Chakra" className="w-4 h-4 object-contain" />
-            <span>2-Tier Ecosystem: Tier 1 Reselling & Tier 2 Recycling</span>
+            <span>Buy & Sell Pre-Loved Clothes | Recycle Unwearable Textiles</span>
           </span>
         </div>
       </div>
@@ -230,7 +231,7 @@ export const Navbar: React.FC<{ activeTab: string; setActiveTab: (tab: string) =
                 className="flex items-center gap-2 group text-left shrink-0"
               >
                 <div className={`px-4 py-1.5 rounded-full text-xs font-bold ${getRoleBadgeStyle()} inline-flex items-center gap-2 shrink-0 whitespace-nowrap shadow-sm`}>
-                  <img src="/logo-emblem.jpg" alt="User Avatar Emblem" className="w-4 h-4 rounded-full object-cover shrink-0" />
+                  <img src={getUserAvatar(currentUser)} alt="User Avatar Emblem" className="w-4 h-4 rounded-full object-cover shrink-0" />
                   <span className="capitalize">{currentUser.role === 'customer' ? 'Consumer' : currentUser.role === 'industry_partner' ? 'Industry' : 'Admin'}</span>
                 </div>
               </button>

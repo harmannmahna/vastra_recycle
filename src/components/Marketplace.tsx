@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ItemCategory, ItemCondition } from '../types';
+import { calculateAiRecommendedPrice } from '../utils/aiPriceCalculator';
 import { Search, SlidersHorizontal, Heart, ShoppingBag, PlusCircle, Filter, Video, ShieldCheck, Sparkles, Star, Tag } from 'lucide-react';
 
 const CATEGORIES: (ItemCategory | 'All')[] = [
@@ -55,13 +56,13 @@ export const Marketplace: React.FC = () => {
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-forest-900/10 text-forest-900 text-xs font-bold uppercase tracking-wider mb-2">
             <ShieldCheck className="w-4 h-4 text-forest-700" />
-            <span>Tier 1 Authenticated Marketplace (&le; 3 Yrs Old)</span>
+            <span>Buy Pre-Loved Clothes (&le; 3 Yrs Old)</span>
           </div>
           <h1 className="font-poppins font-extrabold text-3xl text-forest-900">
             Delhi NCR Pre-Loved Wardrobe
           </h1>
           <p className="text-sm text-forest-900/70 mt-1">
-            Hand-inspected, video-verified premium garments under 3 years of age.
+            Hand-inspected, video-verified premium garments under 3 years of age with AI-powered fair bargaining.
           </p>
         </div>
 
@@ -150,6 +151,8 @@ export const Marketplace: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {filteredItems.map(item => {
             const isLiked = wishlist.includes(item.id);
+            const aiEst = calculateAiRecommendedPrice(item);
+
             return (
               <div 
                 key={item.id}
@@ -207,39 +210,49 @@ export const Marketplace: React.FC = () => {
                       {item.title}
                     </h3>
 
-                    {/* Hygiene & Verification Badges */}
-                    <div className="flex items-center gap-2 mt-1 text-[10px] text-forest-900/70 font-medium">
+                    {/* Hygiene & AI Recommended Price Tag */}
+                    <div className="flex items-center justify-between gap-1 mt-1 text-[10px] font-medium">
                       <span className="flex items-center gap-0.5 text-amber-600 font-bold">
                         <Star className="w-3 h-3 fill-current" /> {item.hygieneRating || 5}/5 Hygiene
                       </span>
-                      <span>•</span>
-                      <span>Verified Pre-loved</span>
+                      
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-900 font-bold rounded-full text-[10px]">
+                        <Sparkles className="w-2.5 h-2.5 text-purple-600" />
+                        <span>AI Fair: ₹{aiEst.recommendedPrice}</span>
+                      </span>
                     </div>
                   </div>
 
-                  {/* Seller & Price */}
+                  {/* Seller & Price & Bargain Trigger */}
                   <div className="pt-2 border-t border-forest-700/10 flex items-center justify-between">
                     <div>
+                      <span className="text-[10px] text-forest-900/60 font-semibold block uppercase">Expected</span>
                       <div className="font-poppins font-extrabold text-base text-forest-900">
                         ₹{item.price.toLocaleString()}
                       </div>
-                      {item.originalPrice && (
-                        <div className="text-[10px] text-forest-900/50 line-through">
-                          MRP ₹{item.originalPrice.toLocaleString()}
-                        </div>
-                      )}
                     </div>
 
-                    <button
-                      onClick={() => {
-                        if (!currentUser) setIsAuthModalOpen(true);
-                        else addToCart(item);
-                      }}
-                      className="p-2.5 bg-forest-900 hover:bg-forest-800 text-cream-100 rounded-xl transition-colors shadow-sm"
-                      title="Add to Cart"
-                    >
-                      <ShoppingBag className="w-4 h-4 text-warmgold-400" />
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setSelectedProductModal(item)}
+                        className="px-2.5 py-1.5 bg-cream-200 hover:bg-cream-300 text-forest-900 text-[11px] font-bold rounded-xl transition-all border border-forest-700/15 flex items-center gap-1"
+                        title="Bargain / Make Offer"
+                      >
+                        <Tag className="w-3 h-3 text-terracotta-500" />
+                        <span>Offer</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          if (!currentUser) setIsAuthModalOpen(true);
+                          else addToCart(item);
+                        }}
+                        className="p-2 bg-forest-900 hover:bg-forest-800 text-cream-100 rounded-xl transition-colors shadow-sm"
+                        title="Add to Cart"
+                      >
+                        <ShoppingBag className="w-4 h-4 text-warmgold-400" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
