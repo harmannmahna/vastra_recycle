@@ -80,7 +80,7 @@ export const RecyclingModal: React.FC = () => {
             </div>
             <div>
               <h2 className="font-poppins font-bold text-xl text-forest-900 flex items-center gap-1.5">
-                <span>Tier 2 Recycling Pickup Request</span>
+                <span>Textile Recycling Pickup Request</span>
                 <img src="/chakra-icon.png" alt="Chakra" className="w-4 h-4 object-contain" />
               </h2>
               <p className="text-xs text-forest-900/60 font-medium">Textile Waste Collection & Weight Processing (Delhi NCR)</p>

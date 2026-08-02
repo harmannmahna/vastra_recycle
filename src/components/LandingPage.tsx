@@ -153,7 +153,7 @@ export const LandingPage: React.FC<{ setActiveTab: (tab: string) => void }> = ({
                 <ShieldCheck className="w-6 h-6" />
               </div>
               <div className="font-poppins font-bold text-xl text-cream-100">
-                Tier 1: Reselling
+                Buy & Sell Clothes
               </div>
               <div className="text-xs text-cream-300 mt-1 max-w-xs mx-auto">
                 Jeans, Sarees, Tops, Jackets, Gowns (under 3 yrs old) from premium brands.
@@ -165,7 +165,7 @@ export const LandingPage: React.FC<{ setActiveTab: (tab: string) => void }> = ({
                 <Recycling className="w-6 h-6" />
               </div>
               <div className="font-poppins font-bold text-xl text-cream-100">
-                Tier 2: Recycling
+                Recycle Textiles
               </div>
               <div className="text-xs text-cream-300 mt-1 max-w-xs mx-auto">
                 Worn textiles picked up by weight with mandatory packed bag image proof.
@@ -190,7 +190,7 @@ export const LandingPage: React.FC<{ setActiveTab: (tab: string) => void }> = ({
       {/* How It Works Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-12">
         <div className="text-center max-w-2xl mx-auto space-y-3">
-          <span className="text-xs font-bold text-earthteal-600 tracking-widest uppercase">The Dual Circular Model</span>
+          <span className="text-xs font-bold text-earthteal-600 tracking-widest uppercase">The Circular Ecosystem</span>
           <h2 className="font-poppins font-bold text-3xl sm:text-4xl text-forest-900">
             How VastraChakra Works
           </h2>
@@ -208,7 +208,7 @@ export const LandingPage: React.FC<{ setActiveTab: (tab: string) => void }> = ({
                 <ShoppingBag className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="font-poppins font-bold text-xl text-forest-900">Tier 1 – Curated Resell Marketplace</h3>
+                <h3 className="font-poppins font-bold text-xl text-forest-900">Buy & Sell Pre-Loved Clothes</h3>
                 <p className="text-xs text-forest-900/60">For wearable clothes (under 3 yrs old)</p>
               </div>
             </div>
@@ -258,7 +258,7 @@ export const LandingPage: React.FC<{ setActiveTab: (tab: string) => void }> = ({
                 <Recycling className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="font-poppins font-bold text-xl text-forest-900">Tier 2 – Textile Recycling Pickup</h3>
+                <h3 className="font-poppins font-bold text-xl text-forest-900">Recycle Unwearable Textiles</h3>
                 <p className="text-xs text-forest-900/60">For torn, faded, or unwearable fabric waste</p>
               </div>
             </div>

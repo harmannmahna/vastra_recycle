@@ -37,7 +37,7 @@ export const SellItemModal: React.FC = () => {
     }
 
     if (!ageYears || Number(ageYears) > 3) {
-      setErrorMessage('VastraChakra policy strictly disallows clothes older than 3 years for Tier 1 reselling.');
+      setErrorMessage('VastraChakra policy strictly disallows clothes older than 3 years for reselling.');
       return;
     }
 
@@ -72,7 +72,6 @@ export const SellItemModal: React.FC = () => {
       termsAccepted: true,
       description: description.trim(),
       price: Number(price),
-      originalPrice: originalPrice ? Number(originalPrice) : undefined,
       images: [imageUrl.trim()],
       tier: 1
     });
@@ -100,10 +99,10 @@ export const SellItemModal: React.FC = () => {
             </div>
             <div>
               <h2 className="font-poppins font-bold text-xl text-forest-900 flex items-center gap-1.5">
-                <span>Tier 1 Reselling Screening Form</span>
+                <span>Sell Your Clothes</span>
                 <img src="/chakra-icon.png" alt="Chakra" className="w-4 h-4 object-contain" />
               </h2>
-              <p className="text-xs text-forest-900/60 font-medium">Strict quality control for premium pre-loved fashion (under 3 yrs old)</p>
+              <p className="text-xs text-forest-900/60 font-medium font-sans">Quality control for pre-loved apparel (under 3 yrs old)</p>
             </div>
           </div>
 
@@ -127,7 +126,7 @@ export const SellItemModal: React.FC = () => {
         <div className="p-3.5 bg-forest-50 border border-forest-700/15 rounded-2xl text-xs space-y-1 text-forest-900">
           <div className="font-bold flex items-center gap-1 text-forest-900">
             <ShieldCheck className="w-4 h-4 text-forest-700" />
-            <span>Tier 1 Reselling Quality Criteria:</span>
+            <span>Quality Criteria for Selling:</span>
           </div>
           <ul className="list-disc list-inside space-y-0.5 text-forest-900/80 pl-1 text-[11px]">
             <li><strong>Selective Categories:</strong> Jeans, Sarees, Tops, Dresses, Jackets, Gowns & Kurtis only.</li>
@@ -298,31 +297,19 @@ export const SellItemModal: React.FC = () => {
             />
           </div>
 
-          {/* Image & Price */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block font-semibold text-forest-900 mb-1">Selling Price (₹) *</label>
-              <input
-                type="number"
-                required
-                min="100"
-                placeholder="e.g. 1800"
-                value={price}
-                onChange={(e) => setPrice(e.target.value ? Number(e.target.value) : '')}
-                className="w-full px-4 py-2.5 bg-white border border-forest-700/20 rounded-xl focus:outline-none font-bold text-forest-900"
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-forest-900 mb-1">Original MRP (₹)</label>
-              <input
-                type="number"
-                placeholder="e.g. 4500"
-                value={originalPrice}
-                onChange={(e) => setOriginalPrice(e.target.value ? Number(e.target.value) : '')}
-                className="w-full px-4 py-2.5 bg-white border border-forest-700/20 rounded-xl focus:outline-none"
-              />
-            </div>
+          {/* Expected Selling Price (No MRP required) */}
+          <div>
+            <label className="block font-semibold text-forest-900 mb-1">Expected Selling Price (₹) *</label>
+            <p className="text-[11px] text-forest-900/60 mb-1.5">Set your asking price. Buyers will be able to submit bargain bids/offers based on this expected price.</p>
+            <input
+              type="number"
+              required
+              min="100"
+              placeholder="e.g. 1800"
+              value={price}
+              onChange={(e) => setPrice(e.target.value ? Number(e.target.value) : '')}
+              className="w-full px-4 py-2.5 bg-white border border-forest-700/20 rounded-xl focus:outline-none font-bold text-forest-900 text-sm"
+            />
           </div>
 
           {/* Photo Image URL */}

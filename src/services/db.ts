@@ -3,7 +3,7 @@
  * Provides client-side state persistence (localStorage / IndexedDB) for Users, Listings, Pickups, and Orders.
  */
 
-import { Item, PickupRequest, Order, User } from '../types';
+import { Item, PickupRequest, Order, User, Offer } from '../types';
 
 const STORAGE_KEYS = {
   USERS: 'vastrachakra_db_users',
@@ -12,6 +12,7 @@ const STORAGE_KEYS = {
   ORDERS: 'vastrachakra_db_orders',
   CURRENT_USER: 'vastrachakra_db_current_user',
   WISHLIST: 'vastrachakra_db_wishlist',
+  OFFERS: 'vastrachakra_db_offers',
 };
 
 export const db = {
@@ -46,6 +47,23 @@ export const db = {
       localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(items));
     } catch (e) {
       console.error('Failed to persist items:', e);
+    }
+  },
+
+  getOffers: (): Offer[] | null => {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.OFFERS);
+      return data ? JSON.parse(data) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  saveOffers: (offers: Offer[]) => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.OFFERS, JSON.stringify(offers));
+    } catch (e) {
+      console.error('Failed to persist offers:', e);
     }
   },
 
