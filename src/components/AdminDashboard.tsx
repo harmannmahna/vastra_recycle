@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { exportToCSV } from '../utils/csvExporter';
 import { AdminPermissions, User } from '../types';
+import { db } from '../services/db';
+import { supabase, isSupabaseConfigured } from '../services/supabase';
 import { 
   ShieldCheck, Users, ShoppingBag, Recycle as Recycling, DollarSign, 
   CheckCircle2, XCircle, PackagePlus, AlertTriangle, Video, Award, Crown, Eye, 
   Download, Search, Filter, Key, Activity, Sparkles, Tag, TrendingUp, Wallet,
-  UserPlus, UserMinus, ShieldAlert, Lock, Trash2, Clock, Check
+  UserPlus, UserMinus, ShieldAlert, Lock, Trash2, Clock, Check, RefreshCw, Wifi
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -23,6 +25,10 @@ export const AdminDashboard: React.FC = () => {
   const [userSearch, setUserSearch] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<'All' | 'customer' | 'industry_partner' | 'admin'>('All');
   const [userStatusFilter, setUserStatusFilter] = useState<'All' | 'active' | 'logged_out'>('All');
+
+  // Live Supabase Sync State for Users DB tab
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
 
   // Admin Rights Modal State
   const [selectedUserForAdmin, setSelectedUserForAdmin] = useState<User | null>(null);
@@ -65,8 +71,14 @@ export const AdminDashboard: React.FC = () => {
   const acceptedOffersCount = offers.filter(o => o.status === 'accepted').length;
   const bargainSuccessRate = offers.length > 0 ? Math.round((acceptedOffersCount / offers.length) * 100) : 100;
 
-  // Filtered Users Database
-  const filteredUsers = users.filter(u => {
+  // Live Supabase data override (fetched directly in this component)
+  const [liveUsers, setLiveUsers] = useState<User[] | null>(null);
+
+  // Resolved users: prefer live Supabase data, fall back to context
+  const resolvedUsers = liveUsers ?? users;
+
+  // Filtered Users Database (uses live Supabase data when available)
+  const filteredUsers = resolvedUsers.filter(u => {
     if (userRoleFilter !== 'All' && u.role !== userRoleFilter) return false;
     if (userStatusFilter === 'active' && !u.isOnline) return false;
     if (userStatusFilter === 'logged_out' && u.isOnline) return false;
@@ -83,6 +95,51 @@ export const AdminDashboard: React.FC = () => {
 
     return true;
   });
+
+  // Live Supabase fetch & realtime subscription for the Master User DB tab
+  const refreshUsersFromSupabase = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    setIsLoadingUsers(true);
+    try {
+      const cloudUsers = await db.fetchUsersSupabase();
+      if (cloudUsers && cloudUsers.length > 0) {
+        setLiveUsers(cloudUsers);
+      }
+      setLastRefreshed(new Date());
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  }, []);
+
+  // On mount: initial fetch + realtime subscription
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    // Initial fetch
+    setIsLoadingUsers(true);
+    db.fetchUsersSupabase().then(cloudUsers => {
+      if (cloudUsers && cloudUsers.length > 0) setLiveUsers(cloudUsers);
+      setLastRefreshed(new Date());
+      setIsLoadingUsers(false);
+    });
+
+    // Realtime subscription
+    const channel = supabase
+      .channel('admin-users-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
+        db.fetchUsersSupabase().then(cloudUsers => {
+          if (cloudUsers && cloudUsers.length > 0) {
+            setLiveUsers(cloudUsers);
+            setLastRefreshed(new Date());
+          }
+        });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const toggleSelectPickup = (id: string) => {
     setSelectedPickups(prev => 
@@ -395,18 +452,43 @@ export const AdminDashboard: React.FC = () => {
       {activeTab === 'users_db' && (
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
+            <div className="space-y-1">
               <h2 className="font-poppins font-bold text-xl text-slate-900 flex items-center gap-2">
                 <Key className="w-5 h-5 text-amber-600" />
-                <span>Master User & Industry Partner Database ({filteredUsers.length} / {users.length})</span>
+                <span>Master User & Industry Partner Database ({filteredUsers.length} / {resolvedUsers.length})</span>
+                {/* Live badge */}
+                {isSupabaseConfigured && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-mono font-bold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <Wifi className="w-3 h-3" />
+                    LIVE · SUPABASE
+                  </span>
+                )}
               </h2>
               <p className="text-xs text-slate-600">
                 Audit log of registered accounts, emails, contacts, passwords, and live Active/Logged-Out status.
+                {lastRefreshed && (
+                  <span className="ml-2 text-emerald-700 font-mono">
+                    · Last synced: {lastRefreshed.toLocaleTimeString()}
+                  </span>
+                )}
               </p>
             </div>
 
-            {/* CSV Toolbar */}
-            <div className="flex flex-wrap gap-2">
+            {/* Toolbar */}
+            <div className="flex flex-wrap gap-2 items-center">
+              {/* Manual refresh */}
+              {isSupabaseConfigured && (
+                <button
+                  onClick={refreshUsersFromSupabase}
+                  disabled={isLoadingUsers}
+                  className="px-3.5 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-mono font-bold text-xs transition-all shadow flex items-center gap-1.5"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingUsers ? 'animate-spin' : ''}`} />
+                  <span>{isLoadingUsers ? 'Syncing…' : 'Refresh DB'}</span>
+                </button>
+              )}
+
               <button
                 onClick={handleExportUsersCSV}
                 className="px-4 py-2 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-mono font-bold text-xs transition-all shadow flex items-center gap-1.5"
@@ -469,7 +551,14 @@ export const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Master User & Company Database Table */}
-          <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-lg">
+          <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-lg relative">
+            {/* Loading overlay */}
+            {isLoadingUsers && (
+              <div className="absolute inset-0 bg-white/70 backdrop-blur-sm z-10 flex flex-col items-center justify-center gap-3 rounded-3xl">
+                <RefreshCw className="w-6 h-6 text-emerald-600 animate-spin" />
+                <span className="text-xs font-mono font-bold text-emerald-700">Fetching live data from Supabase…</span>
+              </div>
+            )}
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-100 text-slate-600 font-mono uppercase text-[10px] border-b border-slate-200">
