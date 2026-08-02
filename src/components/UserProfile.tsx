@@ -17,6 +17,10 @@ export const UserProfile: React.FC = () => {
   const [editPhone, setEditPhone] = useState('');
   const [editGender, setEditGender] = useState<'female' | 'male' | 'other'>('female');
   const [editAvatar, setEditAvatar] = useState('');
+  const [currentPass, setCurrentPass] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [confirmPass, setConfirmPass] = useState('');
+  const [passErrorMsg, setPassErrorMsg] = useState('');
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
 
   // Feedback Modal State
@@ -44,6 +48,10 @@ export const UserProfile: React.FC = () => {
     setEditPhone(currentUser.phone || '');
     setEditGender(currentUser.gender || 'female');
     setEditAvatar(currentUser.avatar || '');
+    setCurrentPass('');
+    setNewPass('');
+    setConfirmPass('');
+    setPassErrorMsg('');
     setSaveSuccessMsg('');
     setIsEditing(true);
   };
@@ -65,17 +73,35 @@ export const UserProfile: React.FC = () => {
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
+    setPassErrorMsg('');
+
+    if (newPass.trim()) {
+      if (currentUser.password && currentPass.trim() !== currentUser.password) {
+        setPassErrorMsg('Current password is incorrect.');
+        return;
+      }
+      if (newPass.trim() !== confirmPass.trim()) {
+        setPassErrorMsg('New passwords do not match.');
+        return;
+      }
+      if (newPass.trim().length < 4) {
+        setPassErrorMsg('New password must be at least 4 characters long.');
+        return;
+      }
+    }
+
     updateUserProfile({
       name: editName.trim(),
       phone: editPhone.trim(),
       gender: editGender,
-      avatar: editAvatar.trim() || undefined
+      avatar: editAvatar.trim() || undefined,
+      ...(newPass.trim() ? { password: newPass.trim() } : {})
     });
-    setSaveSuccessMsg('Profile updated successfully!');
+    setSaveSuccessMsg('Profile and Security Credentials updated successfully!');
     setTimeout(() => {
       setIsEditing(false);
       setSaveSuccessMsg('');
-    }, 1000);
+    }, 1200);
   };
 
   const handleAcceptOffer = (id: string) => {
@@ -303,6 +329,54 @@ export const UserProfile: React.FC = () => {
                   >
                     Third Gender
                   </button>
+                </div>
+              </div>
+
+              {/* Password Update Section */}
+              <div className="pt-2 border-t border-forest-700/10 space-y-3">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-forest-900">
+                  <ShieldCheck className="w-4 h-4 text-amber-600" />
+                  <span>Account Security & Password Update</span>
+                </div>
+
+                {passErrorMsg && (
+                  <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold">
+                    {passErrorMsg}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-forest-900 mb-1">Current Password (if changing)</label>
+                  <input
+                    type="password"
+                    placeholder="Enter current password"
+                    value={currentPass}
+                    onChange={(e) => setCurrentPass(e.target.value)}
+                    className="w-full px-4 py-2 bg-white border border-forest-700/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-700/20 text-xs"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-forest-900 mb-1">New Password</label>
+                    <input
+                      type="password"
+                      placeholder="New password"
+                      value={newPass}
+                      onChange={(e) => setNewPass(e.target.value)}
+                      className="w-full px-4 py-2 bg-white border border-forest-700/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-700/20 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-forest-900 mb-1">Confirm New Password</label>
+                    <input
+                      type="password"
+                      placeholder="Confirm password"
+                      value={confirmPass}
+                      onChange={(e) => setConfirmPass(e.target.value)}
+                      className="w-full px-4 py-2 bg-white border border-forest-700/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-700/20 text-xs"
+                    />
+                  </div>
                 </div>
               </div>
 

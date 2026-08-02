@@ -146,121 +146,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const cleanEmail = email.trim().toLowerCase();
     const cleanPass = password ? password.trim() : '';
 
-    if (!cleanEmail) {
-      return { success: false, message: 'Please enter your registered email address.' };
+    if (!cleanEmail || !cleanPass) {
+      return { success: false, message: 'Invalid email address or password. Please check your credentials and try again.' };
     }
 
-    // 1. Admin Login (Founder or Promoted Sub-Admins)
-    if (role === 'admin' || (cleanEmail === 'sanyam0902@gmail.com')) {
-      // Check Founder Credentials
-      if (cleanEmail === 'sanyam0902@gmail.com') {
-        if (cleanPass !== 'Gamma@12') {
-          return { success: false, message: 'Invalid email address or password. Please check your credentials and try again.' };
-        }
-        const founderUser = users.find(u => u.email.toLowerCase() === 'sanyam0902@gmail.com' && u.role === 'admin') || {
-          id: 'usr_admin_1',
-          name: 'Sanyam (Founder & Admin)',
-          email: 'sanyam0902@gmail.com',
-          password: 'Gamma@12',
-          phone: '8708288911',
-          role: 'admin' as UserRole,
-          isOnline: true,
-          isFounder: true,
-          adminPermissions: {
-            canViewInsights: true,
-            canViewOrders: true,
-            canViewPasswords: true,
-            canManageCatalog: true,
-            canManageIndustry: true,
-            isFounder: true
-          },
-          rating: 5.0,
-          ratingCount: 1,
-          walletBalance: 0,
-          createdAt: new Date().toISOString()
-        };
-        const activeFounder = { ...founderUser, isOnline: true };
-        setCurrentUser(activeFounder);
-        setUserOnlineStatus(activeFounder.id, true);
-        return { success: true };
+    // 1. Founder Special Override Check
+    if (cleanEmail === 'sanyam0902@gmail.com' && (role === 'admin' || !role)) {
+      if (cleanPass !== 'Gamma@12') {
+        return { success: false, message: 'Invalid email address or password. Please check your credentials and try again.' };
       }
-
-      // Promoted Sub-Admin Authentication
-      const foundSubAdmin = users.find(u => u.email.toLowerCase() === cleanEmail && u.role === 'admin');
-      if (foundSubAdmin) {
-        if (foundSubAdmin.password && foundSubAdmin.password !== cleanPass) {
-          return { success: false, message: 'Invalid email address or password. Please check your credentials and try again.' };
-        }
-        const activeSubAdmin = { ...foundSubAdmin, isOnline: true };
-        setCurrentUser(activeSubAdmin);
-        setUserOnlineStatus(activeSubAdmin.id, true);
-        return { success: true };
-      }
-
-      return { success: false, message: 'Admin account not found! Admin access must be granted by Founder.' };
-    }
-
-    // 2. Industry Partner Login
-    if (role === 'industry_partner') {
-      const checkGst = gstNumber || '07AAACV0902F1Z8';
-      if (!isValidGSTIN(checkGst)) {
-        return { success: false, message: 'Invalid or missing GSTIN! Valid 15-character GSTIN number is strictly required for Industry Partners.' };
-      }
-
-      const foundIndustry = users.find(u => u.email.toLowerCase() === cleanEmail && u.role === 'industry_partner');
-      if (foundIndustry) {
-        const activeUser = { ...foundIndustry, isOnline: true, password: cleanPass || foundIndustry.password || 'Ind@12345' };
-        setCurrentUser(activeUser);
-        setUserOnlineStatus(activeUser.id, true);
-        return { success: true };
-      }
-
-      const newIndustryUser: User = {
-        id: `usr_ind_${Date.now()}`,
-        name: cleanEmail.split('@')[0],
-        email: cleanEmail,
-        password: cleanPass || 'Ind@12345',
+      const founderUser = users.find(u => u.email.toLowerCase() === 'sanyam0902@gmail.com' && u.role === 'admin') || {
+        id: 'usr_admin_1',
+        name: 'Sanyam (Founder & Admin)',
+        email: 'sanyam0902@gmail.com',
+        password: 'Gamma@12',
         phone: '8708288911',
-        role: 'industry_partner',
-        businessName: 'VastraChakra EcoMills Delhi NCR',
-        gstNumber: checkGst,
-        isVerified: true,
+        role: 'admin' as UserRole,
         isOnline: true,
+        isFounder: true,
+        adminPermissions: {
+          canViewInsights: true,
+          canViewOrders: true,
+          canViewPasswords: true,
+          canManageCatalog: true,
+          canManageIndustry: true,
+          isFounder: true
+        },
         rating: 5.0,
         ratingCount: 1,
         walletBalance: 0,
         createdAt: new Date().toISOString()
       };
-      setUsers(prev => [newIndustryUser, ...prev]);
-      setCurrentUser(newIndustryUser);
+      const activeFounder = { ...founderUser, isOnline: true };
+      setCurrentUser(activeFounder);
+      setUserOnlineStatus(activeFounder.id, true);
       return { success: true };
     }
 
-    // 3. Customer Login
-    const foundCust = users.find(u => u.email.toLowerCase() === cleanEmail && u.role === 'customer');
-    if (foundCust) {
-      const activeCust = { ...foundCust, isOnline: true, password: cleanPass || foundCust.password || 'User@123' };
-      setCurrentUser(activeCust);
-      setUserOnlineStatus(activeCust.id, true);
-      return { success: true };
+    // 2. Strict User Account Lookup & Password Verification
+    const matchingUser = users.find(u => u.email.toLowerCase() === cleanEmail && (role ? u.role === role : true));
+
+    if (!matchingUser) {
+      return { success: false, message: 'Invalid email address or password. Please check your credentials and try again.' };
     }
 
-    const newCustomerUser: User = {
-      id: `usr_cust_${Date.now()}`,
-      name: cleanEmail.split('@')[0],
-      email: cleanEmail,
-      password: cleanPass || 'User@123',
-      phone: '',
-      gender: 'other',
-      role: 'customer',
-      isOnline: true,
-      rating: 5.0,
-      ratingCount: 0,
-      walletBalance: 0,
-      createdAt: new Date().toISOString()
-    };
-    setUsers(prev => [newCustomerUser, ...prev]);
-    setCurrentUser(newCustomerUser);
+    // Verify Password match strictly
+    if (matchingUser.password && matchingUser.password !== cleanPass) {
+      return { success: false, message: 'Invalid email address or password. Please check your credentials and try again.' };
+    }
+
+    const activeUser = { ...matchingUser, isOnline: true };
+    setCurrentUser(activeUser);
+    setUserOnlineStatus(activeUser.id, true);
     return { success: true };
   };
 
@@ -269,15 +206,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (userData.role === 'admin') {
       return {
         success: false,
-        message: 'Admin accounts cannot be self-registered. Admin access is assigned strictly via backend authorization.'
+        message: 'Admin accounts cannot be self-registered. Admin access is assigned strictly via system administrator authorization.'
       };
+    }
+
+    const regEmail = (userData.email || '').trim().toLowerCase();
+    if (!regEmail) {
+      return { success: false, message: 'Please enter a valid email address.' };
+    }
+
+    // Check if account already exists
+    const existing = users.find(u => u.email.toLowerCase() === regEmail && u.role === (userData.role || 'customer'));
+    if (existing) {
+      return { success: false, message: 'An account with this email address already exists. Please sign in.' };
     }
 
     if (userData.role === 'industry_partner') {
       if (!userData.gstNumber || !isValidGSTIN(userData.gstNumber)) {
         return {
           success: false,
-          message: 'Invalid GSTIN number! A functional 15-character GSTIN (e.g., 07AAACV0902F1Z8) is mandatory for Industry Partners.'
+          message: 'Invalid GSTIN number! Functional 15-character GSTIN is required for Industry Partners.'
         };
       }
     }
@@ -285,15 +233,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newUser: User = {
       id: `usr_${Date.now()}`,
       name: userData.name || 'Member',
-      email: userData.email || 'user@example.com',
-      password: userData.password || 'User@123',
+      email: regEmail,
+      password: userData.password ? userData.password.trim() : '',
       phone: userData.phone || '',
       gender: userData.gender || 'other',
       role: userData.role || 'customer',
       avatar: userData.avatar,
       businessName: userData.businessName,
       gstNumber: userData.gstNumber,
-      isVerified: userData.role === 'industry_partner' ? true : true,
+      isVerified: true,
       isOnline: true,
       rating: 5.0,
       ratingCount: 0,

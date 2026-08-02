@@ -85,7 +85,7 @@ export const AuthModal: React.FC = () => {
         }
         const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i;
         if (!gstRegex.test(gstNumber.trim())) {
-          setErrorMessage('Invalid GSTIN format! Please enter a valid 15-character Indian GSTIN (e.g. 07AAACV0902F1Z8).');
+          setErrorMessage('Invalid GSTIN format! Please enter a valid 15-character GSTIN.');
           return;
         }
       }
@@ -112,7 +112,7 @@ export const AuthModal: React.FC = () => {
       if (selectedRoleTab === 'industry_partner' && gstNumber.trim()) {
         const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i;
         if (!gstRegex.test(gstNumber.trim())) {
-          setErrorMessage('Invalid GSTIN format! Please enter a valid 15-character GSTIN (e.g. 07AAACV0902F1Z8).');
+          setErrorMessage('Invalid GSTIN format! Please enter a valid 15-character GSTIN.');
           return;
         }
       }
@@ -373,7 +373,7 @@ export const AuthModal: React.FC = () => {
                 <input
                   type="text"
                   required={selectedRoleTab === 'industry_partner'}
-                  placeholder="e.g. 07AAACV0902F1Z8"
+                  placeholder="Enter 15-character GSTIN"
                   value={gstNumber}
                   onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
                   className="w-full px-4 py-2 bg-white border border-forest-700/20 rounded-xl focus:outline-none font-mono tracking-wider"
