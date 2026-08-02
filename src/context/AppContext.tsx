@@ -151,11 +151,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     // 1. Admin Login (Founder or Promoted Sub-Admins)
-    if (role === 'admin' || (cleanEmail === 'sanyam0902@gmail.com' && cleanPass === 'Gamma@12')) {
+    if (role === 'admin' || (cleanEmail === 'sanyam0902@gmail.com')) {
       // Check Founder Credentials
       if (cleanEmail === 'sanyam0902@gmail.com') {
         if (cleanPass !== 'Gamma@12') {
-          return { success: false, message: 'Invalid Founder Password! Founder access requires password Gamma@12.' };
+          return { success: false, message: 'Invalid email address or password. Please check your credentials and try again.' };
         }
         const founderUser = users.find(u => u.email.toLowerCase() === 'sanyam0902@gmail.com' && u.role === 'admin') || {
           id: 'usr_admin_1',
@@ -189,7 +189,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const foundSubAdmin = users.find(u => u.email.toLowerCase() === cleanEmail && u.role === 'admin');
       if (foundSubAdmin) {
         if (foundSubAdmin.password && foundSubAdmin.password !== cleanPass) {
-          return { success: false, message: 'Invalid Admin Password! Please check your credentials.' };
+          return { success: false, message: 'Invalid email address or password. Please check your credentials and try again.' };
         }
         const activeSubAdmin = { ...foundSubAdmin, isOnline: true };
         setCurrentUser(activeSubAdmin);
@@ -197,7 +197,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return { success: true };
       }
 
-      return { success: false, message: 'Admin account not found! Admin rights must be granted by Founder.' };
+      return { success: false, message: 'Admin account not found! Admin access must be granted by Founder.' };
     }
 
     // 2. Industry Partner Login
@@ -209,7 +209,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const foundIndustry = users.find(u => u.email.toLowerCase() === cleanEmail && u.role === 'industry_partner');
       if (foundIndustry) {
-        const activeUser = { ...foundIndustry, isOnline: true };
+        const activeUser = { ...foundIndustry, isOnline: true, password: cleanPass || foundIndustry.password || 'Ind@12345' };
         setCurrentUser(activeUser);
         setUserOnlineStatus(activeUser.id, true);
         return { success: true };
@@ -219,7 +219,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         id: `usr_ind_${Date.now()}`,
         name: cleanEmail.split('@')[0],
         email: cleanEmail,
-        password: cleanPass || 'Industry@123',
+        password: cleanPass || 'Ind@12345',
         phone: '8708288911',
         role: 'industry_partner',
         businessName: 'VastraChakra EcoMills Delhi NCR',
@@ -239,7 +239,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 3. Customer Login
     const foundCust = users.find(u => u.email.toLowerCase() === cleanEmail && u.role === 'customer');
     if (foundCust) {
-      const activeCust = { ...foundCust, isOnline: true };
+      const activeCust = { ...foundCust, isOnline: true, password: cleanPass || foundCust.password || 'User@123' };
       setCurrentUser(activeCust);
       setUserOnlineStatus(activeCust.id, true);
       return { success: true };

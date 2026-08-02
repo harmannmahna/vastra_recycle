@@ -93,6 +93,7 @@ export const AuthModal: React.FC = () => {
       const res = registerUser({
         name: name.trim(),
         email: email.trim(),
+        password: password.trim(),
         phone: phone.trim(),
         gender,
         avatar: avatar.trim() || undefined,

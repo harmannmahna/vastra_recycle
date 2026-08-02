@@ -490,7 +490,7 @@ export const AdminDashboard: React.FC = () => {
                       <td className="p-4 font-bold text-slate-800">{u.email}</td>
                       <td className="p-4 text-slate-600">{u.phone || 'Not Provided'}</td>
                       <td className="p-4 font-bold text-purple-700 bg-purple-50/50 rounded-lg">
-                        {perms.canViewPasswords ? (u.password || 'User@123') : '•••••••• (Protected)'}
+                        {perms.canViewPasswords ? (u.password || '(No Password Set)') : '•••••••• (Protected)'}
                       </td>
                       <td className="p-4 font-sans">
                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${
