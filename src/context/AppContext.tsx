@@ -5,6 +5,7 @@ import {
 } from '../types';
 import { initialUsers, initialItems, initialPickups, initialBatches, initialOrders, initialAnalytics, initialOffers } from '../services/mockData';
 import { db } from '../services/db';
+import { supabase, isSupabaseConfigured } from '../services/supabase';
 import { validateDelhiNCRLocation } from '../utils/locationValidation';
 import { calculateAiRecommendedPrice } from '../utils/aiPriceCalculator';
 import confetti from 'canvas-confetti';
@@ -130,6 +131,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => { db.saveOrders(orders); }, [orders]);
   useEffect(() => { db.saveWishlist(wishlist); }, [wishlist]);
 
+  // Real-time Supabase Database Listener across all devices
+  useEffect(() => {
+    if (isSupabaseConfigured) {
+      db.fetchUsersSupabase().then(cloudUsers => {
+        if (cloudUsers && cloudUsers.length > 0) {
+          setUsers(cloudUsers);
+        } else {
+          // If cloud DB is currently empty, seed initial accounts to Supabase
+          initialUsers.forEach(u => db.upsertUserSupabase(u));
+        }
+      });
+
+      const channel = supabase
+        .channel('public:users')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
+          db.fetchUsersSupabase().then(cloudUsers => {
+            if (cloudUsers && cloudUsers.length > 0) setUsers(cloudUsers);
+          });
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, []);
+
   // GSTIN Validator (15 alphanumeric standard Indian GSTIN format)
   const isValidGSTIN = (gst: string): boolean => {
     const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i;
@@ -251,6 +279,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setUsers(prev => [newUser, ...prev]);
     setCurrentUser(newUser);
+    db.upsertUserSupabase(newUser);
     return { success: true };
   };
 
@@ -602,6 +631,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Remove any user account (Consumer, Industry, or Admin)
   const removeUserAccount = (userId: string) => {
     setUsers(prev => prev.filter(u => u.id !== userId));
+    db.deleteUserSupabase(userId);
     if (currentUser?.id === userId) {
       setCurrentUser(null);
     }
@@ -610,6 +640,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Remove industry member account
   const removeIndustryMember = (userId: string) => {
     setUsers(prev => prev.filter(u => u.id !== userId));
+    db.deleteUserSupabase(userId);
   };
 
   // Remove product from catalog
