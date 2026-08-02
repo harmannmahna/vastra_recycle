@@ -5,6 +5,7 @@ import {
 } from '../types';
 import { initialUsers, initialItems, initialPickups, initialBatches, initialOrders, initialAnalytics, initialOffers } from '../services/mockData';
 import { db } from '../services/db';
+import { supabase, isSupabaseConfigured } from '../services/supabase';
 import { validateDelhiNCRLocation } from '../utils/locationValidation';
 import { calculateAiRecommendedPrice } from '../utils/aiPriceCalculator';
 import confetti from 'canvas-confetti';
@@ -129,6 +130,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => { db.savePickups(pickups); }, [pickups]);
   useEffect(() => { db.saveOrders(orders); }, [orders]);
   useEffect(() => { db.saveWishlist(wishlist); }, [wishlist]);
+
+  // Real-time Supabase Database Listener across all devices
+  useEffect(() => {
+    if (isSupabaseConfigured) {
+      db.fetchUsersSupabase().then(cloudUsers => {
+        if (cloudUsers && cloudUsers.length > 0) {
+          setUsers(cloudUsers);
+        }
+      });
+
+      const channel = supabase
+        .channel('public:users')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
+          db.fetchUsersSupabase().then(cloudUsers => {
+            if (cloudUsers) setUsers(cloudUsers);
+          });
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, []);
 
   // GSTIN Validator (15 alphanumeric standard Indian GSTIN format)
   const isValidGSTIN = (gst: string): boolean => {
