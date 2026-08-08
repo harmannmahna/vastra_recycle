@@ -63,7 +63,7 @@ export interface Item {
   originalPrice?: number;
   commissionPercent: number; // default 10%
   size: string;
-  brand: string; // Mandatory premium/recognized brand
+  brand?: string; // Optional brand / local trader label
   ageYears: number; // Max 3 years allowed
   wornTimesPerYear?: number;
   isColorFaded?: boolean;
@@ -162,6 +162,14 @@ export interface Order {
   feedbackRating?: number;
   feedbackComment?: string;
   feedbackDate?: string;
+  buyerRatingGiven?: boolean;
+  buyerRating?: number;
+  buyerFeedbackComment?: string;
+  buyerFeedbackDate?: string;
+  sellerRatingGiven?: boolean;
+  sellerRating?: number;
+  sellerFeedbackComment?: string;
+  sellerFeedbackDate?: string;
   createdAt: string;
 }
 

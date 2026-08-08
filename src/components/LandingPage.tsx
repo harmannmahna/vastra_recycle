@@ -37,7 +37,7 @@ export const LandingPage: React.FC<{ setActiveTab: (tab: string) => void }> = ({
               </h1>
 
               <p className="font-inter text-base sm:text-lg text-forest-900/80 max-w-2xl leading-relaxed">
-                VastraChakra is building Delhi NCR’s premier 2-tier circular fashion ecosystem. Resell curated, pre-loved garments (under 3 years old) or send worn-out textiles for certified recycling.
+                VastraChakra is building Delhi NCR’s premier 2-tier circular fashion ecosystem. Resell curated, pre-loved garments or send worn-out textiles for certified recycling.
               </p>
 
               {/* Action Buttons */}
@@ -120,9 +120,9 @@ export const LandingPage: React.FC<{ setActiveTab: (tab: string) => void }> = ({
                     </div>
 
                     <div className="bg-forest-50 p-3.5 rounded-2xl border border-forest-700/10">
-                      <div className="text-[11px] text-forest-900/60 font-semibold">Resell Rule</div>
+                      <div className="text-[11px] text-forest-900/60 font-semibold">Resell Quality</div>
                       <div className="text-sm font-poppins font-bold text-terracotta-600">
-                        Max 3 Years Usage
+                        Video Verified
                       </div>
                     </div>
                   </div>

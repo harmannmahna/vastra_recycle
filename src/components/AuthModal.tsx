@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { UserRole } from '../types';
 import { X, User, Factory, ShieldCheck, Instagram, AlertCircle, CheckCircle2, Building2, Camera, Upload } from 'lucide-react';
 import { getDefaultAvatar } from '../utils/avatarUtils';
 
 export const AuthModal: React.FC = () => {
   const { isAuthModalOpen, setIsAuthModalOpen, login, registerUser, initialAuthRole } = useApp();
+  const { showToast } = useToast();
   const [isRegister, setIsRegister] = useState(false);
 
   // Selected Role Tab for Login / Register
@@ -104,8 +106,10 @@ export const AuthModal: React.FC = () => {
 
       if (res.success) {
         setIsAuthModalOpen(false);
+        showToast('Registration Successful! 🎉', `Welcome to VastraChakra, ${name.trim()}!`, 'success');
       } else {
         setErrorMessage(res.message || 'Registration failed.');
+        showToast('Registration Error', res.message || 'Failed to create account.', 'error');
       }
     } else {
       // Login Flow
@@ -120,8 +124,10 @@ export const AuthModal: React.FC = () => {
       const res = login(email, password, selectedRoleTab, gstNumber);
       if (res.success) {
         setIsAuthModalOpen(false);
+        showToast('Welcome Back! 👋', 'Logged in successfully.', 'success');
       } else {
         setErrorMessage(res.message || 'Login failed. Please check your credentials.');
+        showToast('Login Failed', res.message || 'Invalid credentials.', 'error');
       }
     }
   };

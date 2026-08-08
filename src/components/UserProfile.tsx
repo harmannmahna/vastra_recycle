@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { User, Package, Recycle as Recycling, ShoppingBag, MapPin, Wallet, Star, ShieldCheck, CheckCircle2, Clock, Edit2, Camera, X, Check, Tag, Sparkles, Send, AlertTriangle } from 'lucide-react';
 import { getUserAvatar, getDefaultAvatar } from '../utils/avatarUtils';
 
 export const UserProfile: React.FC = () => {
   const { 
-    currentUser, items, pickups, orders, offers, 
-    updateUserProfile, acceptOffer, rejectOffer, counterOffer, buyAtNegotiatedPrice, submitOrderFeedback 
+    currentUser, items, pickups, orders, 
+    updateUserProfile, submitOrderFeedback, submitSellerRating 
   } = useApp();
+  const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'listings' | 'offers' | 'orders' | 'recycling'>('listings');
+  const [activeTab, setActiveTab] = useState<'listings' | 'orders' | 'recycling'>('listings');
 
   // Profile Edit Modal State
   const [isEditing, setIsEditing] = useState(false);
@@ -23,25 +25,22 @@ export const UserProfile: React.FC = () => {
   const [passErrorMsg, setPassErrorMsg] = useState('');
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
 
-  // Feedback Modal State
+  // Buyer Feedback Modal State (Buyer rates Seller & Item)
   const [feedbackOrderId, setFeedbackOrderId] = useState<string | null>(null);
   const [feedbackRating, setFeedbackRating] = useState<number>(5);
   const [feedbackComment, setFeedbackComment] = useState<string>('Excellent quality pre-loved garment! Received as described.');
 
-  // Counter Offer UI State
-  const [counteringOfferId, setCounteringOfferId] = useState<string | null>(null);
-  const [counterVal, setCounterVal] = useState<number | ''>('');
+  // Seller Feedback Modal State (Seller rates Buyer)
+  const [sellerRatingOrderId, setSellerRatingOrderId] = useState<string | null>(null);
+  const [sellerRatingVal, setSellerRatingVal] = useState<number>(5);
+  const [sellerCommentVal, setSellerCommentVal] = useState<string>('Great buyer! Quick payment and smooth communication.');
 
   if (!currentUser) return null;
 
   const myItems = items.filter(i => i.ownerId === currentUser.id);
   const myPickups = pickups.filter(p => p.userId === currentUser.id);
   const myOrders = orders.filter(o => o.buyerId === currentUser.id);
-
-  // Offers received as Seller
-  const receivedOffers = offers.filter(o => o.sellerId === currentUser.id);
-  // Offers sent as Buyer
-  const sentOffers = offers.filter(o => o.buyerId === currentUser.id);
+  const mySalesOrders = orders.filter(o => o.item.ownerId === currentUser.id);
 
   const openEditModal = () => {
     setEditName(currentUser.name || '');
@@ -98,46 +97,11 @@ export const UserProfile: React.FC = () => {
       ...(newPass.trim() ? { password: newPass.trim() } : {})
     });
     setSaveSuccessMsg('Profile and Security Credentials updated successfully!');
+    showToast('Profile Updated! ✨', 'Your account profile has been saved successfully.', 'success');
     setTimeout(() => {
       setIsEditing(false);
       setSaveSuccessMsg('');
     }, 1200);
-  };
-
-  const handleAcceptOffer = (id: string) => {
-    acceptOffer(id);
-    alert('Offer accepted! The buyer can now proceed to checkout at your agreed price.');
-  };
-
-  const handleRejectOffer = (id: string) => {
-    rejectOffer(id);
-  };
-
-  const handleSendCounter = (id: string) => {
-    if (!counterVal || Number(counterVal) <= 0) return;
-    counterOffer(id, Number(counterVal));
-    setCounteringOfferId(null);
-    setCounterVal('');
-    alert(`Counter offer of ₹${Number(counterVal).toLocaleString()} sent to buyer!`);
-  };
-
-  const handleBuyNegotiated = (offerId: string) => {
-    const defaultAddr = currentUser.address || {
-      id: 'addr_temp',
-      userId: currentUser.id,
-      line1: 'C-14, Hauz Khas Enclave',
-      city: 'New Delhi',
-      state: 'Delhi NCR',
-      pincode: '110016',
-      isDefault: true
-    };
-    const res = buyAtNegotiatedPrice(offerId, 'upi', defaultAddr);
-    if (res.success) {
-      alert('Order placed successfully at negotiated price!');
-      setActiveTab('orders');
-    } else {
-      alert(res.message || 'Failed to complete transaction.');
-    }
   };
 
   return (
@@ -414,16 +378,6 @@ export const UserProfile: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('offers')}
-          className={`pb-3 border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
-            activeTab === 'offers' ? 'border-forest-900 text-forest-900 font-bold' : 'border-transparent text-forest-900/60'
-          }`}
-        >
-          <Tag className="w-4 h-4 text-purple-600" />
-          <span>Offers & Bargains ({receivedOffers.length + sentOffers.length})</span>
-        </button>
-
-        <button
           onClick={() => setActiveTab('orders')}
           className={`pb-3 border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'orders' ? 'border-forest-900 text-forest-900 font-bold' : 'border-transparent text-forest-900/60'
@@ -499,165 +453,43 @@ export const UserProfile: React.FC = () => {
               You haven't listed any clothing items for sale yet.
             </div>
           )}
-        </div>
-      )}
 
-      {/* Tab Content 2: Offers & Bargains (Disha's Feature Request) */}
-      {activeTab === 'offers' && (
-        <div className="space-y-8">
-          {/* Section A: Offers Received on My Listings (As Seller) */}
-          <div className="space-y-4">
-            <h2 className="font-poppins font-bold text-lg text-forest-900 flex items-center gap-2">
-              <Tag className="w-4 h-4 text-terracotta-500" />
-              <span>Offers Received on Your Items ({receivedOffers.length})</span>
-            </h2>
-
-            {receivedOffers.length > 0 ? (
-              <div className="grid md:grid-cols-2 gap-4">
-                {receivedOffers.map(off => (
-                  <div key={off.id} className="bg-white p-5 rounded-3xl border border-cream-300 space-y-4 shadow-sm">
-                    <div className="flex gap-4 items-center">
-                      <img src={off.itemImage} alt="" className="w-16 h-16 rounded-xl object-cover bg-cream-200 shrink-0" />
-                      <div className="space-y-0.5">
-                        <span className="text-[10px] font-bold text-purple-700 uppercase">From Buyer: {off.buyerName}</span>
-                        <h3 className="font-bold text-sm text-forest-900">{off.itemTitle}</h3>
-                        <div className="text-xs text-forest-900/60">Asking: ₹{off.askingPrice} • AI Fair: ₹{off.aiRecommendedPrice}</div>
-                      </div>
+          {/* Section: Items Sold & Mutual Buyer Rating */}
+          {mySalesOrders.length > 0 && (
+            <div className="pt-6 space-y-4 border-t border-cream-300 col-span-full">
+              <h3 className="font-poppins font-bold text-base text-forest-900 flex items-center gap-2">
+                <ShoppingBag className="w-4 h-4 text-terracotta-500" />
+                <span>Items Sold & Buyer Ratings ({mySalesOrders.length})</span>
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {mySalesOrders.map(sale => (
+                  <div key={sale.id} className="bg-white p-4 rounded-2xl border border-cream-300 flex justify-between items-center text-xs shadow-xs">
+                    <div>
+                      <span className="font-bold text-forest-900 block">{sale.item.title}</span>
+                      <span className="text-[11px] text-forest-900/60">Buyer: {sale.buyerName} • Sold for ₹{sale.amount}</span>
                     </div>
-
-                    {/* Offered Price Callout */}
-                    <div className="p-3 bg-purple-50 rounded-2xl border border-purple-200 flex justify-between items-center text-xs">
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-purple-800">Offered Price</span>
-                        <div className="font-poppins font-extrabold text-xl text-purple-900">₹{off.offerAmount.toLocaleString()}</div>
-                      </div>
-                      {off.counterAmount && (
-                        <div className="text-right">
-                          <span className="text-[10px] uppercase font-bold text-amber-800">Your Counter</span>
-                          <div className="font-poppins font-bold text-base text-amber-900">₹{off.counterAmount.toLocaleString()}</div>
-                        </div>
-                      )}
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold capitalize ${
-                        off.status === 'accepted' ? 'bg-emerald-100 text-emerald-800' : off.status === 'rejected' ? 'bg-red-100 text-red-800' : off.status === 'countered' ? 'bg-amber-100 text-amber-900' : 'bg-purple-100 text-purple-800'
-                      }`}>
-                        {off.status}
+                    {sale.sellerRatingGiven ? (
+                      <span className="px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full font-bold">
+                        Rated Buyer ({sale.sellerRating || 5} ★)
                       </span>
-                    </div>
-
-                    {/* Action Buttons for Seller */}
-                    {off.status === 'pending' && (
-                      <div className="space-y-2">
-                        {counteringOfferId === off.id ? (
-                          <div className="flex gap-2">
-                            <input
-                              type="number"
-                              placeholder="Enter counter price ₹"
-                              value={counterVal}
-                              onChange={(e) => setCounterVal(e.target.value ? Number(e.target.value) : '')}
-                              className="w-full px-3 py-2 text-xs bg-cream-100 border border-forest-700/20 rounded-xl font-bold"
-                            />
-                            <button
-                              onClick={() => handleSendCounter(off.id)}
-                              className="px-4 py-2 bg-amber-600 text-white rounded-xl text-xs font-bold whitespace-nowrap"
-                            >
-                              Send Counter
-                            </button>
-                            <button
-                              onClick={() => setCounteringOfferId(null)}
-                              className="px-2 py-2 bg-slate-200 text-slate-700 rounded-xl text-xs"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleAcceptOffer(off.id)}
-                              className="flex-1 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1"
-                            >
-                              <Check className="w-3.5 h-3.5" /> Accept ₹{off.offerAmount}
-                            </button>
-
-                            <button
-                              onClick={() => {
-                                setCounteringOfferId(off.id);
-                                setCounterVal(Math.round((off.askingPrice + off.offerAmount) / 2));
-                              }}
-                              className="py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all shadow-xs"
-                            >
-                              Counter Offer
-                            </button>
-
-                            <button
-                              onClick={() => handleRejectOffer(off.id)}
-                              className="py-2 px-3 rounded-xl bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold transition-all border border-red-200"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setSellerRatingOrderId(sale.id)}
+                        className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold flex items-center gap-1 shadow-xs transition-all"
+                      >
+                        <Star className="w-3.5 h-3.5 fill-current" />
+                        <span>Rate Buyer</span>
+                      </button>
                     )}
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="bg-white p-6 rounded-3xl text-center border border-cream-300 text-xs text-forest-900/60">
-                No bargain offers received on your listings yet.
-              </div>
-            )}
-          </div>
-
-          {/* Section B: Offers Sent by Me (As Buyer) */}
-          <div className="space-y-4">
-            <h2 className="font-poppins font-bold text-lg text-forest-900 flex items-center gap-2">
-              <Send className="w-4 h-4 text-purple-600" />
-              <span>Offers You Sent to Sellers ({sentOffers.length})</span>
-            </h2>
-
-            {sentOffers.length > 0 ? (
-              <div className="grid md:grid-cols-2 gap-4">
-                {sentOffers.map(off => (
-                  <div key={off.id} className="bg-white p-5 rounded-3xl border border-cream-300 space-y-3 shadow-sm">
-                    <div className="flex gap-4 items-center">
-                      <img src={off.itemImage} alt="" className="w-16 h-16 rounded-xl object-cover bg-cream-200 shrink-0" />
-                      <div>
-                        <span className="text-[10px] font-bold text-forest-900/60 uppercase">Seller: {off.sellerName}</span>
-                        <h3 className="font-bold text-sm text-forest-900">{off.itemTitle}</h3>
-                        <div className="text-xs text-forest-900/60">Your Offer: ₹{off.offerAmount} • Asking: ₹{off.askingPrice}</div>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between items-center pt-2 border-t border-cream-200">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold capitalize ${
-                        off.status === 'accepted' ? 'bg-emerald-100 text-emerald-800' : off.status === 'countered' ? 'bg-amber-100 text-amber-900' : off.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-purple-100 text-purple-800'
-                      }`}>
-                        Status: {off.status === 'accepted' ? 'Offer Accepted!' : off.status === 'countered' ? `Seller Countered: ₹${off.counterAmount}` : off.status}
-                      </span>
-
-                      {(off.status === 'accepted' || off.status === 'countered') && (
-                        <button
-                          onClick={() => handleBuyNegotiated(off.id)}
-                          className="px-4 py-2 bg-forest-900 hover:bg-forest-800 text-cream-100 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
-                        >
-                          <ShoppingBag className="w-3.5 h-3.5 text-warmgold-400" />
-                          <span>Buy for ₹{off.status === 'countered' && off.counterAmount ? off.counterAmount : off.offerAmount}</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="bg-white p-6 rounded-3xl text-center border border-cream-300 text-xs text-forest-900/60">
-                You haven't sent any bargain offers yet. Click "Make an Offer" on marketplace products!
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Tab Content 3: My Purchases */}
+      {/* Tab Content: My Purchases */}
       {activeTab === 'orders' && (
         <div className="space-y-4">
           {myOrders.length > 0 ? (
@@ -816,14 +648,85 @@ export const UserProfile: React.FC = () => {
               </button>
               <button
                 onClick={() => {
-                  submitOrderFeedback(feedbackOrderId, feedbackRating, feedbackComment);
-                  alert('Thank you! Your feedback has been recorded. Auto-removal timeline initialized (5 days).');
-                  setFeedbackOrderId(null);
+                  if (feedbackOrderId) {
+                    submitOrderFeedback(feedbackOrderId, feedbackRating, feedbackComment);
+                    showToast('Feedback Submitted! ⭐', 'Thank you! Auto-archival timeline initialized (5 days).', 'success');
+                    setFeedbackOrderId(null);
+                  }
                 }}
                 className="flex-1 py-2.5 rounded-full bg-forest-900 hover:bg-forest-800 text-cream-100 font-bold text-xs shadow flex items-center justify-center gap-1.5"
               >
                 <Check className="w-4 h-4 text-warmgold-400" />
                 <span>Submit Feedback</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seller Rating Modal (Seller rates Buyer) */}
+      {sellerRatingOrderId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-forest-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-cream-100 border border-cream-300 rounded-3xl max-w-md w-full p-6 shadow-2xl relative space-y-4">
+            <div className="flex items-center justify-between border-b border-cream-300 pb-3">
+              <div className="flex items-center gap-2">
+                <Star className="w-5 h-5 text-amber-500 fill-current" />
+                <h3 className="font-poppins font-bold text-lg text-forest-900">Rate Buyer Experience</h3>
+              </div>
+              <button onClick={() => setSellerRatingOrderId(null)} className="p-1 text-forest-900/60 hover:text-forest-900">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-forest-900 mb-1">Buyer Rating Score (1 to 5 Stars)</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setSellerRatingVal(star)}
+                      className={`flex-1 py-2 rounded-xl font-bold border transition-all flex items-center justify-center gap-1 ${
+                        sellerRatingVal >= star ? 'bg-amber-100 text-amber-900 border-amber-400' : 'bg-white text-forest-900 border-cream-300'
+                      }`}
+                    >
+                      <Star className={`w-4 h-4 ${sellerRatingVal >= star ? 'fill-current text-amber-500' : ''}`} />
+                      <span>{star}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-forest-900 mb-1">Buyer Feedback Comments</label>
+                <textarea
+                  rows={3}
+                  value={sellerCommentVal}
+                  onChange={(e) => setSellerCommentVal(e.target.value)}
+                  placeholder="Rate buyer payment speed and communication..."
+                  className="w-full p-3 bg-cream-50 border border-forest-700/20 rounded-xl focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setSellerRatingOrderId(null)}
+                className="flex-1 py-2.5 rounded-full border border-forest-700/20 text-forest-900 font-bold text-xs hover:bg-cream-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  submitSellerRating(sellerRatingOrderId, sellerRatingVal, sellerCommentVal);
+                  showToast('Buyer Rating Submitted! ⭐', 'Mutual rating recorded for buyer profile.', 'success');
+                  setSellerRatingOrderId(null);
+                }}
+                className="flex-1 py-2.5 rounded-full bg-forest-900 hover:bg-forest-800 text-cream-100 font-bold text-xs shadow flex items-center justify-center gap-1.5"
+              >
+                <Check className="w-4 h-4 text-warmgold-400" />
+                <span>Submit Buyer Rating</span>
               </button>
             </div>
           </div>

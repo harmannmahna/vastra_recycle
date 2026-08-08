@@ -1,5 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { ShoppingBag, Heart, Search, User as UserIcon, PlusCircle, Recycle as Recycling, ShieldCheck, Factory, LogOut, Instagram, Sparkles, Home, Tag } from 'lucide-react';
 import { getUserAvatar } from '../utils/avatarUtils';
 
@@ -11,6 +12,7 @@ export const Navbar: React.FC<{ activeTab: string; setActiveTab: (tab: string) =
     setIsAuthModalOpen, setIsIndustryAccessModalOpen, setInitialAuthRole, 
     setIsSellModalOpen, setIsRecycleModalOpen, setIsCartOpen 
   } = useApp();
+  const { showToast } = useToast();
 
   const totalCartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -239,6 +241,7 @@ export const Navbar: React.FC<{ activeTab: string; setActiveTab: (tab: string) =
               <button
                 onClick={() => {
                   logout();
+                  showToast('Logged Out', 'You have been logged out of your account.', 'info');
                   setActiveTab('home');
                 }}
                 className="p-2 text-forest-900/60 hover:text-terracotta-500 rounded-lg transition-colors shrink-0"
