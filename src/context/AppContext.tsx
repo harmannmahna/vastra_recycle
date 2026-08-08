@@ -33,6 +33,7 @@ interface AppContextType {
   removeIndustryMember: (userId: string) => void;
   removeProduct: (itemId: string) => void;
   submitOrderFeedback: (orderId: string, rating: number, comment: string) => void;
+  submitSellerRating: (orderId: string, rating: number, comment: string) => void;
   cleanupSoldProducts5Days: () => void;
   
   // Data lists
@@ -96,8 +97,11 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // DB Persistence initialization
-  const [users, setUsers] = useState<User[]>(() => db.getUsers() || initialUsers);
+  const [users, setUsers] = useState<User[]>(() => {
+    const stored = db.getUsers();
+    if (!stored || stored.length < 10) return initialUsers;
+    return stored;
+  });
   const [currentUser, setCurrentUser] = useState<User | null>(() => db.getCurrentUser() || null);
   const [items, setItems] = useState<Item[]>(() => db.getItems() || initialItems);
   const [offers, setOffers] = useState<Offer[]>(() => db.getOffers() || initialOffers);
@@ -135,11 +139,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (isSupabaseConfigured) {
       db.fetchUsersSupabase().then(cloudUsers => {
-        if (cloudUsers && cloudUsers.length > 0) {
-          setUsers(cloudUsers);
+        setUsers(prev => {
+          const map = new Map<string, User>();
+          initialUsers.forEach(u => map.set(u.id, u));
+          prev.forEach(u => map.set(u.id, u));
+          if (cloudUsers) {
+            cloudUsers.forEach(u => map.set(u.id, u));
+          }
+          return Array.from(map.values());
+        });
+        // Seed initial users to Supabase if not already present
+        initialUsers.forEach(u => db.upsertUserSupabase(u));
+      });
+
+      // Realtime items cloud sync
+      db.fetchItemsSupabase().then(cloudItems => {
+        if (cloudItems && cloudItems.length > 0) {
+          setItems(cloudItems);
         } else {
-          // If cloud DB is currently empty, seed initial accounts to Supabase
-          initialUsers.forEach(u => db.upsertUserSupabase(u));
+          initialItems.forEach(i => db.upsertItemSupabase(i));
         }
       });
 
@@ -147,7 +165,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .channel('public:users')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
           db.fetchUsersSupabase().then(cloudUsers => {
-            if (cloudUsers && cloudUsers.length > 0) setUsers(cloudUsers);
+            if (cloudUsers) {
+              setUsers(prev => {
+                const map = new Map<string, User>();
+                initialUsers.forEach(u => map.set(u.id, u));
+                prev.forEach(u => map.set(u.id, u));
+                cloudUsers.forEach(u => map.set(u.id, u));
+                return Array.from(map.values());
+              });
+            }
+          });
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, () => {
+          db.fetchItemsSupabase().then(cloudItems => {
+            if (cloudItems && cloudItems.length > 0) setItems(cloudItems);
           });
         })
         .subscribe();
@@ -334,10 +365,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: 'Please login to list an item for resale.' };
     }
 
-    if (itemData.ageYears > 3) {
-      return { success: false, message: 'VastraChakra policy strictly disallows clothes older than 3 years for reselling.' };
-    }
-
     const newItem: Item = {
       ...itemData,
       id: `item_${Date.now()}`,
@@ -346,11 +373,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ownerAvatar: currentUser.avatar,
       ownerRating: currentUser.rating || 5.0,
       commissionPercent: 10,
-      status: 'under_review',
+      status: 'listed',
       createdAt: new Date().toISOString().split('T')[0]
     };
 
     setItems(prev => [newItem, ...prev]);
+    db.upsertItemSupabase(newItem);
     confetti({ particleCount: 50, spread: 60 });
     return { success: true };
   };
@@ -648,11 +676,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setItems(prev => prev.filter(i => i.id !== itemId));
   };
 
-  // Submit buyer order feedback & trigger auto-archival timeline
+  // Submit buyer order feedback (buyer rates seller & item)
   const submitOrderFeedback = (orderId: string, rating: number, comment: string) => {
     const now = new Date().toISOString();
     setOrders(prev => prev.map(o => {
       if (o.id === orderId) {
+        // Update seller rating
+        setUsers(uPrev => uPrev.map(u => {
+          if (u.id === o.item.ownerId) {
+            const count = u.ratingCount || 0;
+            const curr = u.rating || 5.0;
+            const newRating = Number(((curr * count + rating) / (count + 1)).toFixed(1));
+            return { ...u, rating: newRating, ratingCount: count + 1 };
+          }
+          return u;
+        }));
         // Mark item as feedback given
         setItems(itemPrev => itemPrev.map(it => {
           if (it.id === o.item.id) {
@@ -670,6 +708,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           feedbackRating: rating,
           feedbackComment: comment,
           feedbackDate: now
+        };
+      }
+      return o;
+    }));
+  };
+
+  // Submit seller feedback (seller rates buyer)
+  const submitSellerRating = (orderId: string, rating: number, comment: string) => {
+    const now = new Date().toISOString();
+    setOrders(prev => prev.map(o => {
+      if (o.id === orderId) {
+        // Update buyer rating
+        setUsers(uPrev => uPrev.map(u => {
+          if (u.id === o.buyerId) {
+            const count = u.ratingCount || 0;
+            const curr = u.rating || 5.0;
+            const newRating = Number(((curr * count + rating) / (count + 1)).toFixed(1));
+            return { ...u, rating: newRating, ratingCount: count + 1 };
+          }
+          return u;
+        }));
+        return {
+          ...o,
+          sellerRatingGiven: true,
+          sellerRating: rating,
+          sellerFeedbackComment: comment,
+          sellerFeedbackDate: now
         };
       }
       return o;
@@ -695,7 +760,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider value={{
       currentUser, setCurrentUser, login, registerUser, updateUserProfile, approveIndustryUser, logout,
-      promoteToAdmin, revokeAdminRights, updateAdminPermissions, removeUserAccount, removeIndustryMember, removeProduct, submitOrderFeedback, cleanupSoldProducts5Days,
+      promoteToAdmin, revokeAdminRights, updateAdminPermissions, removeUserAccount, removeIndustryMember, removeProduct, submitOrderFeedback, submitSellerRating, cleanupSoldProducts5Days,
       users, items, offers, pickups, batches, orders, analytics, wishlist,
       cart, addToCart, removeFromCart, clearCart, toggleWishlist,
       createListing, moderateListing, createPickupRequest, claimBatch, updateBatchStatus, createBatchFromPickups, completeCheckout,

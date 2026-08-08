@@ -84,7 +84,9 @@ export const db = {
   getItems: (): Item[] | null => {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.ITEMS);
-      return data ? JSON.parse(data) : null;
+      if (!data) return null;
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : null;
     } catch {
       return null;
     }
@@ -228,6 +230,85 @@ export const db = {
       return true;
     } catch (err) {
       console.error('Failed to delete user from Supabase:', err);
+      return false;
+    }
+  },
+
+  fetchItemsSupabase: async (): Promise<Item[] | null> => {
+    if (!isSupabaseConfigured) return null;
+    try {
+      const { data, error } = await supabase.from('items').select('*');
+      if (error || !data || data.length === 0) return null;
+      return data.map((row: any) => ({
+        id: row.id,
+        ownerId: row.owner_id || row.ownerId,
+        ownerName: row.owner_name || row.ownerName,
+        ownerAvatar: row.owner_avatar || row.ownerAvatar,
+        ownerRating: Number(row.owner_rating || row.ownerRating || 5.0),
+        title: row.title,
+        description: row.description,
+        category: row.category,
+        images: Array.isArray(row.images) ? row.images : [row.images],
+        videoUrl: row.video_url || row.videoUrl,
+        condition: row.condition,
+        tier: row.tier || 1,
+        status: row.status || 'listed',
+        price: Number(row.price),
+        commissionPercent: Number(row.commission_percent || 10),
+        size: row.size,
+        brand: row.brand || 'Local Trader / Vintage',
+        ageYears: Number(row.age_years || row.ageYears || 1),
+        wornTimesPerYear: Number(row.worn_times_per_year || row.wornTimesPerYear || 2),
+        isColorFaded: row.is_color_faded || row.isColorFaded || false,
+        hasStainsOrDefects: row.has_stains_or_defects || row.hasStainsOrDefects || false,
+        hygieneRating: Number(row.hygiene_rating || row.hygieneRating || 5),
+        middlemanVerified: row.middleman_verified || row.middlemanVerified || true,
+        termsAccepted: row.terms_accepted || row.termsAccepted || true,
+        createdAt: row.created_at || row.createdAt || new Date().toISOString().split('T')[0]
+      }));
+    } catch (err) {
+      console.warn('Supabase fetchItems error:', err);
+      return null;
+    }
+  },
+
+  upsertItemSupabase: async (item: Item): Promise<boolean> => {
+    if (!isSupabaseConfigured) return false;
+    try {
+      const { error } = await supabase.from('items').upsert({
+        id: item.id,
+        owner_id: item.ownerId,
+        owner_name: item.ownerName,
+        owner_avatar: item.ownerAvatar,
+        owner_rating: item.ownerRating,
+        title: item.title,
+        description: item.description,
+        category: item.category,
+        images: item.images,
+        video_url: item.videoUrl,
+        condition: item.condition,
+        tier: item.tier,
+        status: item.status,
+        price: item.price,
+        commission_percent: item.commissionPercent,
+        size: item.size,
+        brand: item.brand,
+        age_years: item.ageYears,
+        worn_times_per_year: item.wornTimesPerYear,
+        is_color_faded: item.isColorFaded,
+        has_stains_or_defects: item.hasStainsOrDefects,
+        hygiene_rating: item.hygieneRating,
+        middleman_verified: item.middlemanVerified,
+        terms_accepted: item.termsAccepted,
+        created_at: item.createdAt
+      });
+      if (error) {
+        console.error('Supabase item upsert error:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('Failed to upsert item to Supabase:', err);
       return false;
     }
   }

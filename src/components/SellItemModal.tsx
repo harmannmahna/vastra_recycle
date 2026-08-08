@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { ItemCategory, ItemCondition } from '../types';
 import { X, PlusCircle, CheckCircle2, Sparkles, Video, AlertTriangle, ShieldCheck } from 'lucide-react';
 
 export const SellItemModal: React.FC = () => {
   const { isSellModalOpen, setIsSellModalOpen, createListing, currentUser } = useApp();
+  const { showToast } = useToast();
 
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<ItemCategory>('Ethnic & Sarees');
   const [condition, setCondition] = useState<ItemCondition>('wearable_like_new');
   const [size, setSize] = useState('M');
-  const [brand, setBrand] = useState('');
   const [ageYears, setAgeYears] = useState<number | ''>(1.0);
   const [wornTimesPerYear, setWornTimesPerYear] = useState<number | ''>(2);
   const [isColorFaded, setIsColorFaded] = useState(false);
@@ -31,13 +32,18 @@ export const SellItemModal: React.FC = () => {
     e.preventDefault();
     setErrorMessage('');
 
-    if (!title.trim() || !price || !brand.trim()) {
-      setErrorMessage('Please fill in all mandatory fields (Title, Brand, Price).');
+    if (!title.trim() || !price) {
+      setErrorMessage('Please fill in all mandatory fields (Title, Selling Price).');
       return;
     }
 
-    if (!ageYears || Number(ageYears) > 3) {
-      setErrorMessage('VastraChakra policy strictly disallows clothes older than 3 years for reselling.');
+    if (ageYears === '' || Number(ageYears) < 0) {
+      setErrorMessage('Please enter a valid garment age (0 or greater).');
+      return;
+    }
+
+    if (wornTimesPerYear !== '' && Number(wornTimesPerYear) < 0) {
+      setErrorMessage('Times worn per year cannot be negative.');
       return;
     }
 
@@ -61,7 +67,7 @@ export const SellItemModal: React.FC = () => {
       category,
       condition,
       size: size.trim() || 'M',
-      brand: brand.trim(),
+      brand: 'Local Trader / Vintage',
       ageYears: Number(ageYears),
       wornTimesPerYear: wornTimesPerYear ? Number(wornTimesPerYear) : 2,
       isColorFaded,
@@ -78,9 +84,10 @@ export const SellItemModal: React.FC = () => {
 
     if (res.success) {
       setIsSellModalOpen(false);
-      alert('Listing submitted successfully! It is now under review by Admin for video & quality verification.');
+      showToast('Listing Published! 🎉', 'Your garment listing is now live on the Marketplace for buyers!', 'success');
     } else {
       setErrorMessage(res.message || 'Failed to submit listing.');
+      showToast('Submission Error', res.message || 'Failed to submit listing.', 'error');
     }
   };
 
@@ -102,7 +109,7 @@ export const SellItemModal: React.FC = () => {
                 <span>Sell Your Clothes</span>
                 <img src="/chakra-icon.png" alt="Chakra" className="w-4 h-4 object-contain" />
               </h2>
-              <p className="text-xs text-forest-900/60 font-medium font-sans">Quality control for pre-loved apparel (under 3 yrs old)</p>
+              <p className="text-xs text-forest-900/60 font-medium font-sans">List your pre-loved & vintage apparel for sale</p>
             </div>
           </div>
 
@@ -130,8 +137,6 @@ export const SellItemModal: React.FC = () => {
           </div>
           <ul className="list-disc list-inside space-y-0.5 text-forest-900/80 pl-1 text-[11px]">
             <li><strong>Selective Categories:</strong> Jeans, Sarees, Tops, Dresses, Jackets, Gowns & Kurtis only.</li>
-            <li><strong>Age Rule:</strong> Must be 3 years old or less (Purchased &ge; 2023).</li>
-            <li><strong>Brands:</strong> Recognized premium or well-known brands only (FabIndia, Levi's, Zara, Biba, H&M, etc.).</li>
             <li><strong>Video Transparency:</strong> Mandatory short video upload showing garment fit & condition.</li>
           </ul>
         </div>
@@ -139,35 +144,20 @@ export const SellItemModal: React.FC = () => {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4 text-xs sm:text-sm">
           
-          {/* Title & Brand */}
+          {/* Item Title & Category */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block font-semibold text-forest-900 mb-1">Item Title *</label>
               <input
                 type="text"
                 required
-                placeholder="e.g. FabIndia Handloom Silk Saree"
+                placeholder="e.g. Handloom Silk Saree / Pre-loved Denim Jacket"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full px-4 py-2.5 bg-white border border-forest-700/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-700/20"
               />
             </div>
 
-            <div>
-              <label className="block font-semibold text-forest-900 mb-1">Brand Name (Premium / Well-known) *</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. FabIndia, Levi's, Zara, Biba, Raw Mango"
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-                className="w-full px-4 py-2.5 bg-white border border-forest-700/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-700/20"
-              />
-            </div>
-          </div>
-
-          {/* Category & Condition */}
-          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block font-semibold text-forest-900 mb-1">Allowed Category *</label>
               <select
@@ -183,18 +173,19 @@ export const SellItemModal: React.FC = () => {
                 <option value="Kurtis">Kurtis</option>
               </select>
             </div>
+          </div>
 
-            <div>
-              <label className="block font-semibold text-forest-900 mb-1">Garment Size *</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. S, M, L, 32, Free Size"
-                value={size}
-                onChange={(e) => setSize(e.target.value)}
-                className="w-full px-4 py-2.5 bg-white border border-forest-700/20 rounded-xl focus:outline-none"
-              />
-            </div>
+          {/* Garment Size Only ONCE */}
+          <div>
+            <label className="block font-semibold text-forest-900 mb-1">Garment Size *</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. S, M, L, 32, Free Size"
+              value={size}
+              onChange={(e) => setSize(e.target.value)}
+              className="w-full px-4 py-2.5 bg-white border border-forest-700/20 rounded-xl focus:outline-none"
+            />
           </div>
 
           {/* Age & Usage Screening */}
@@ -206,16 +197,16 @@ export const SellItemModal: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block font-semibold text-forest-900 mb-1">
-                  Age of Garment (Years) * <span className="text-terracotta-500">(Max 3 Yrs)</span>
+                  Age of Garment (Years) *
                 </label>
                 <input
                   type="number"
                   step="0.5"
-                  max="3"
+                  min="0"
                   required
                   placeholder="e.g. 1.0"
                   value={ageYears}
-                  onChange={(e) => setAgeYears(e.target.value ? Number(e.target.value) : '')}
+                  onChange={(e) => setAgeYears(e.target.value !== '' ? Math.max(0, Number(e.target.value)) : '')}
                   className="w-full px-4 py-2 bg-white border border-forest-700/20 rounded-xl focus:outline-none font-bold text-forest-900"
                 />
               </div>
@@ -224,10 +215,11 @@ export const SellItemModal: React.FC = () => {
                 <label className="block font-semibold text-forest-900 mb-1">Times Worn Per Year *</label>
                 <input
                   type="number"
+                  min="0"
                   required
                   placeholder="e.g. 2"
                   value={wornTimesPerYear}
-                  onChange={(e) => setWornTimesPerYear(e.target.value ? Number(e.target.value) : '')}
+                  onChange={(e) => setWornTimesPerYear(e.target.value !== '' ? Math.max(0, Number(e.target.value)) : '')}
                   className="w-full px-4 py-2 bg-white border border-forest-700/20 rounded-xl focus:outline-none font-bold"
                 />
               </div>
@@ -300,7 +292,7 @@ export const SellItemModal: React.FC = () => {
           {/* Expected Selling Price (No MRP required) */}
           <div>
             <label className="block font-semibold text-forest-900 mb-1">Expected Selling Price (₹) *</label>
-            <p className="text-[11px] text-forest-900/60 mb-1.5">Set your asking price. Buyers will be able to submit bargain bids/offers based on this expected price.</p>
+            <p className="text-[11px] text-forest-900/60 mb-1.5">Set your asking price for direct buyer purchase on VastraChakra.</p>
             <input
               type="number"
               required
@@ -312,17 +304,43 @@ export const SellItemModal: React.FC = () => {
             />
           </div>
 
-          {/* Photo Image URL */}
-          <div>
-            <label className="block font-semibold text-forest-900 mb-1">Garment Photo Image URL *</label>
-            <input
-              type="url"
-              required
-              placeholder="Paste high-res image URL of the garment"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              className="w-full px-4 py-2.5 bg-white border border-forest-700/20 rounded-xl focus:outline-none text-xs font-mono"
-            />
+          {/* Photo Image Upload & URL */}
+          <div className="space-y-2">
+            <label className="block font-semibold text-forest-900 mb-1">Garment Photo Image *</label>
+            <div className="flex flex-col sm:flex-row gap-2 items-center">
+              <input
+                type="url"
+                required
+                placeholder="Paste image URL or select photo below"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                className="flex-1 w-full px-4 py-2.5 bg-white border border-forest-700/20 rounded-xl focus:outline-none text-xs font-mono"
+              />
+              <label className="w-full sm:w-auto px-4 py-2.5 bg-forest-900 hover:bg-forest-800 text-cream-100 text-xs font-bold rounded-xl cursor-pointer text-center whitespace-nowrap transition-all shadow-xs">
+                <span>📷 Upload Photo</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (evt) => {
+                        if (evt.target?.result) setImageUrl(evt.target.result as string);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="hidden"
+                />
+              </label>
+            </div>
+            {imageUrl && (
+              <div className="flex items-center gap-3 p-2 bg-cream-200/60 rounded-xl border border-forest-700/10">
+                <img src={imageUrl} alt="Garment Preview" className="w-12 h-12 object-cover rounded-lg bg-white border border-cream-300" />
+                <span className="text-[11px] text-forest-900/80 font-medium">Photo attached & ready for upload!</span>
+              </div>
+            )}
           </div>
 
           {/* Description */}

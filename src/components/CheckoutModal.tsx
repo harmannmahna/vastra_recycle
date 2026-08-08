@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { X, CreditCard, Smartphone, Truck, ShieldCheck, CheckCircle2, Sparkles, AlertCircle } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
+import { X, CreditCard, Smartphone, QrCode, Truck, ShieldCheck, CheckCircle2, Sparkles, AlertCircle } from 'lucide-react';
 import { Address } from '../types';
 
 export const CheckoutModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   const { cart, completeCheckout, currentUser } = useApp();
-  const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card' | 'cod'>('upi');
+  const { showToast } = useToast();
+  const [paymentMethod, setPaymentMethod] = useState<'upi' | 'qr' | 'card' | 'cod'>('qr');
   const [upiId, setUpiId] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -23,23 +25,28 @@ export const CheckoutModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
   if (!isOpen) return null;
 
   const subtotal = cart.reduce((sum, item) => sum + item.item.price * item.quantity, 0);
+  const platformFee = Math.round(subtotal * 0.05);
   const shippingFee = subtotal > 1500 ? 0 : 99;
-  const total = subtotal + shippingFee;
+  const total = subtotal + platformFee + shippingFee;
+
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=upi://pay?pa=sanyam0902@okhdfcbank&pn=Sanyam%20Masta&am=${total}&cu=INR`;
 
   const handlePayment = () => {
     setErrorMessage('');
     setIsProcessing(true);
 
     setTimeout(() => {
-      const res = completeCheckout(paymentMethod, address);
+      const pMethod = paymentMethod === 'qr' ? 'upi' : paymentMethod;
+      const res = completeCheckout(pMethod, address);
       setIsProcessing(false);
       if (res.success) {
         onClose();
-        alert('Order Placed Successfully! Seller will dispatch your item within 24 hours in Delhi NCR.');
+        showToast('Order Placed Successfully! 🎉', 'Seller will dispatch your item within 24 hours in Delhi NCR.', 'success');
       } else {
         setErrorMessage(res.message || 'Checkout failed.');
+        showToast('Checkout Failed', res.message || 'Payment processing failed.', 'error');
       }
-    }, 800);
+    }, 1200);
   };
 
   return (
@@ -118,47 +125,75 @@ export const CheckoutModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
         {/* Payment Method Selector */}
         <div className="space-y-3 text-xs sm:text-sm">
           <h3 className="font-semibold text-forest-900">2. Select Payment Method</h3>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-2">
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('qr')}
+              className={`p-2.5 rounded-2xl border flex flex-col items-center gap-1 transition-all ${
+                paymentMethod === 'qr'
+                  ? 'bg-forest-900 text-cream-100 border-forest-900 shadow-sm'
+                  : 'bg-white text-forest-900 border-cream-300 hover:border-forest-700'
+              }`}
+            >
+              <QrCode className="w-5 h-5 text-terracotta-500" />
+              <span className="font-bold text-[11px]">UPI QR</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setPaymentMethod('upi')}
-              className={`p-3 rounded-2xl border flex flex-col items-center gap-1.5 transition-all ${
+              className={`p-2.5 rounded-2xl border flex flex-col items-center gap-1 transition-all ${
                 paymentMethod === 'upi'
                   ? 'bg-forest-900 text-cream-100 border-forest-900 shadow-sm'
                   : 'bg-white text-forest-900 border-cream-300 hover:border-forest-700'
               }`}
             >
               <Smartphone className="w-5 h-5" />
-              <span className="font-bold text-xs">UPI / GPay</span>
+              <span className="font-bold text-[11px]">UPI ID</span>
             </button>
 
             <button
               type="button"
               onClick={() => setPaymentMethod('card')}
-              className={`p-3 rounded-2xl border flex flex-col items-center gap-1.5 transition-all ${
+              className={`p-2.5 rounded-2xl border flex flex-col items-center gap-1 transition-all ${
                 paymentMethod === 'card'
                   ? 'bg-forest-900 text-cream-100 border-forest-900 shadow-sm'
                   : 'bg-white text-forest-900 border-cream-300 hover:border-forest-700'
               }`}
             >
               <CreditCard className="w-5 h-5" />
-              <span className="font-bold text-xs">Card</span>
+              <span className="font-bold text-[11px]">Card</span>
             </button>
 
             <button
               type="button"
               onClick={() => setPaymentMethod('cod')}
-              className={`p-3 rounded-2xl border flex flex-col items-center gap-1.5 transition-all ${
+              className={`p-2.5 rounded-2xl border flex flex-col items-center gap-1 transition-all ${
                 paymentMethod === 'cod'
                   ? 'bg-forest-900 text-cream-100 border-forest-900 shadow-sm'
                   : 'bg-white text-forest-900 border-cream-300 hover:border-forest-700'
               }`}
             >
               <Truck className="w-5 h-5" />
-              <span className="font-bold text-xs">Cash on Delivery</span>
+              <span className="font-bold text-[11px]">COD</span>
             </button>
           </div>
 
+          {/* QR Code Option */}
+          {paymentMethod === 'qr' && (
+            <div className="p-4 bg-white rounded-2xl border border-cream-300 flex flex-col items-center space-y-2 text-center animate-fadeIn">
+              <span className="text-xs font-bold text-forest-900">Scan QR Code with GPay / PhonePe / Paytm</span>
+              <div className="p-3 bg-white border border-forest-700/20 rounded-2xl shadow-md flex flex-col items-center space-y-2">
+                <img src={qrUrl} alt="Sanyam Masta UPI QR Code" className="w-44 h-44 object-contain" />
+                <div className="text-center">
+                  <div className="font-bold text-xs text-forest-900">Sanyam Masta</div>
+                  <div className="text-[11px] text-forest-900/70 font-mono font-semibold">UPI ID: sanyam0902@okhdfcbank</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* UPI ID Option */}
           {paymentMethod === 'upi' && (
             <div className="pt-1">
               <input
@@ -173,14 +208,22 @@ export const CheckoutModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
         </div>
 
         {/* Amount Summary */}
-        <div className="bg-white p-4 rounded-2xl border border-cream-300 space-y-2 text-xs">
-          <div className="flex justify-between font-bold text-forest-900 text-sm">
-            <span>Total Payable Amount</span>
-            <span className="text-forest-700">₹{total.toLocaleString()}</span>
+        <div className="bg-white p-4 rounded-2xl border border-cream-300 space-y-1.5 text-xs">
+          <div className="flex justify-between text-forest-900/70">
+            <span>Items Subtotal:</span>
+            <span>₹{subtotal.toLocaleString()}</span>
           </div>
-          <div className="text-[10px] text-forest-900/60 flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5 text-earthteal-500" />
-            <span>Includes 10% platform commission & seller insurance</span>
+          <div className="flex justify-between text-forest-900/70">
+            <span>VastraChakra Platform Fee (5%):</span>
+            <span>₹{platformFee.toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between text-forest-900/70">
+            <span>Delivery Fee:</span>
+            <span>{shippingFee === 0 ? 'FREE' : `₹${shippingFee}`}</span>
+          </div>
+          <div className="flex justify-between font-bold text-forest-900 text-sm pt-2 border-t border-cream-200">
+            <span>Total Payable Amount</span>
+            <span className="text-terracotta-600 font-extrabold text-lg">₹{total.toLocaleString()}</span>
           </div>
         </div>
 
@@ -191,11 +234,11 @@ export const CheckoutModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
           className="w-full py-4 rounded-full bg-terracotta-500 hover:bg-terracotta-600 disabled:opacity-50 text-white font-poppins font-bold text-sm transition-all shadow-lg flex items-center justify-center gap-2"
         >
           {isProcessing ? (
-            <span>Processing Payment...</span>
+            <span>Verifying Payment...</span>
           ) : (
             <>
               <img src="/chakra-icon.png" alt="Chakra" className="w-4 h-4 object-contain inline" />
-              <span>Pay ₹{total.toLocaleString()} & Complete Order</span>
+              <span>Confirm & Pay ₹{total.toLocaleString()}</span>
             </>
           )}
         </button>
@@ -204,4 +247,5 @@ export const CheckoutModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
     </div>
   );
 };
+
 

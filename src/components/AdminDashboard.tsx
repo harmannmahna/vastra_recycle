@@ -74,8 +74,15 @@ export const AdminDashboard: React.FC = () => {
   // Live Supabase data override (fetched directly in this component)
   const [liveUsers, setLiveUsers] = useState<User[] | null>(null);
 
-  // Resolved users: prefer live Supabase data, fall back to context
-  const resolvedUsers = liveUsers ?? users;
+  // Resolved users: merge context users and live Supabase users (never drops existing users)
+  const resolvedUsers = React.useMemo(() => {
+    const map = new Map<string, User>();
+    users.forEach(u => map.set(u.id, u));
+    if (liveUsers) {
+      liveUsers.forEach(u => map.set(u.id, u));
+    }
+    return Array.from(map.values());
+  }, [users, liveUsers]);
 
   // Filtered Users Database (uses live Supabase data when available)
   const filteredUsers = resolvedUsers.filter(u => {
